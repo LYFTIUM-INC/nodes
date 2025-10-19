@@ -1,0 +1,102 @@
+version: '3.8'
+
+networks:
+  mev_foundation_network:
+    external: true
+
+services:
+  # MEV-Boost - Builder API with properly formatted relay URL
+  mev-boost:
+    image: flashbots/mev-boost:latest
+    container_name: mev-boost-foundation
+    restart: unless-stopped
+    ports:
+      - "18550:18551"   # Builder API
+      - "18551:18551"   # Metrics
+    volumes:
+      - /data/blockchain/nodes/configs/mev-boost:/configs
+      - /data/mev/data:/data
+      - /data/blockchain/nodes/jwt-secret-common.hex:/data/jwt-secret.hex:ro
+    environment:
+      - LOG_LEVEL=info
+      - JSON_LOGS=true
+    command: ["mev-boost", "--mainnet", "-addr", "0.0.0.0:18550", "-metrics-addr", "0.0.0.0:18551", "--relay", "https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net", "--relay", "https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com", "--relay", "https://0xafa4c6985aa0492339d33dcbcc4c4d4eef2bdc13ab634cdac220861043d7c72dcc37128625841264849aa6eb89cdd9a@relay.ultrasound.money"]
+    networks:
+      - mev_foundation_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:18550"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-mev-foundation
+    restart: unless-stopped
+    ports:
+      - "19091:9090"     # Different port to avoid conflict
+    volumes:
+      - /data/blockchain/nodes/configs/monitoring/prometheus-foundation.yml:/etc/prometheus/prometheus.yml:ro
+      - /data/blockchain/nodes/monitoring/rules:/etc/prometheus/rules
+      - prometheus-foundation-data:/prometheus/data
+    command: >
+      --config.file=/etc/prometheus/prometheus.yml
+      --storage.tsdb.path=/prometheus/data
+      --web.console.templates=/etc/prometheus/console
+      --web.console.libraries=/etc/prometheus/console_libraries
+    networks:
+      - mev_foundation_network
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-mev-foundation
+    restart: unless-stopped
+    ports:
+      - "3001:3000"     # Different port to avoid conflict
+    volumes:
+      - /data/blockchain/nodes/configs/grafana:/etc/grafana
+      - /data/blockchain/nodes/data/grafana-foundation:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=mev_foundation_2025
+    networks:
+      - mev_foundation_network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# Volume definitions
+volumes:
+  prometheus-foundation-data:
+    driver: local
+  grafana-foundation-data:
+    driver: local
+
+# RBuilder - Block Builder
+  rbuilder:
+    image: flashbots/rbuilder:latest
+    container_name: rbuilder-foundation
+    restart: unless-stopped
+    ports:
+      - "18552:3000"     # Builder API
+    volumes:
+      - /data/blockchain/nodes/configs/rbuilder:/configs
+      - /data/blockchain/nodes/jwt-secret-common.hex:/jwt-secret-common.hex:ro
+    environment:
+      - RBUILDER_RELAYS=https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com
+      - RBUILDER_PRIVKEY_FILE=/configs/priv-key.txt
+      - RBUILDER_PORT=3000
+      - RBUILDER_HOST=0.0.0.0
+      - PYTHONPATH=/opt/mev-lab
+    networks:
+      - mev_foundation_network
+    depends_on:
+      - mev-boost

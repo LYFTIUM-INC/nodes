@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  reth-ethereum:
+    image: ghcr.io/paradigmxyz/reth:v1.0.0
+    container_name: reth-ethereum-mev
+    restart: unless-stopped
+    ports:
+      - "18545:8545"     # HTTP RPC (MEV-specific)
+      - "18546:8546"     # WebSocket RPC (MEV-specific)
+      - "30313:30303"   # P2P TCP (different from Erigon)
+      - "30313:30303/udp" # P2P UDP
+      - "18601:6060"     # Metrics (MEV-specific)
+    volumes:
+      - /data/blockchain/storage/reth:/data
+      - /data/blockchain/nodes/jwt-secret-common.hex:/jwt-secret-common.hex:ro
+    command: |
+      reth node
+      --chain mainnet
+      --datadir /data
+      --http
+      --http.addr 0.0.0.0
+      --http.port 8545
+      --http.api eth,net,web3,debug,trace,txpool
+      --http.corsdomain *
+      --ws
+      --ws.addr 0.0.0.0
+      --ws.port 8546
+      --ws.origins *
+      --metrics
+      --metrics.addr 0.0.0.0
+      --metrics.port 6060
+      --port 30303
+      --nat any
+      --builder
+      --builder.url http://mev-boost:18550
+      --auth.jwt-secret /jwt-secret-common.hex
+      --auth.addr 0.0.0.0
+      --auth.port 8551
+      --log.level info
+      --log.console
+    networks:
+      - mev_foundation_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+
+networks:
+  mev_foundation_network:
+    external: true
