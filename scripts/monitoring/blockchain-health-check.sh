@@ -39,11 +39,12 @@ print_header() {
     echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}\n"
 }
 
-# Check if a port is listening
+# Check if a port is listening using ss
 check_port() {
     local port=$1
     local name=$2
-    if timeout 3 bash -c "cat < /dev/tcp/127.0.0.1/$port" 2>/dev/null; then
+
+    if ss -tln | grep -q ":$port "; then
         log_success "$name is listening on port $port"
         return 0
     else
@@ -58,7 +59,7 @@ check_rpc() {
     local name=$2
 
     local result=$(curl -s -X POST -H "Content-Type: application/json" \
-        --max-time 5 \
+        --max-time 10 \
         -d '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
         "$url" 2>/dev/null)
 
@@ -91,7 +92,7 @@ check_engine() {
     local name=$2
 
     local result=$(curl -s -X POST -H "Content-Type: application/json" \
-        --max-time 5 \
+        --max-time 10 \
         -d '{"jsonrpc":"2.0","method":"engine_getPayloadV1","params":["0x0000000000000000000000000000000000000000000000000000000000000000"],"id":1}' \
         "$url" 2>/dev/null)
 
@@ -107,7 +108,7 @@ check_engine() {
 
 # Check Lighthouse
 check_lighthouse() {
-    local result=$(curl -s "$LIGHTHOUSE_API/eth/v1/node/syncing" --max-time 5 2>/dev/null)
+    local result=$(curl -s "$LIGHTHOUSE_API/eth/v1/node/syncing" --max-time 10 2>/dev/null)
 
     if [[ -z "$result" ]]; then
         log_error "Lighthouse API is not responding"
@@ -124,7 +125,7 @@ check_lighthouse() {
     fi
 
     # Check connection to execution layer
-    local is_optimistic=$(curl -s "$LIGHTHOUSE_API/eth/v1/node/health" --max-time 5 2>/dev/null | jq -r '.data.optimistic' 2>/dev/null)
+    local is_optimistic=$(curl -s "$LIGHTHOUSE_API/eth/v1/node/health" --max-time 10 2>/dev/null | jq -r '.data.optimistic' 2>/dev/null)
     if [[ "$is_optimistic" == "true" ]]; then
         log_success "Lighthouse is connected to execution layer"
     else
@@ -134,7 +135,7 @@ check_lighthouse() {
 
 # Check MEV-Boost
 check_mev_boost() {
-    local result=$(curl -s "$MEV_BOOST" --max-time 5 2>/dev/null)
+    local result=$(curl -s "$MEV_BOOST" --max-time 10 2>/dev/null)
 
     if [[ -z "$result" ]]; then
         log_error "MEV-Boost is not responding"
