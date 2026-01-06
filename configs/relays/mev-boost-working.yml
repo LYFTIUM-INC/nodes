@@ -1,0 +1,49 @@
+version: '3.8'
+
+networks:
+  mev_foundation_network:
+    external: true
+
+services:
+  # MEV-Boost - Local mode for testing
+  mev-boost:
+    image: flashbots/mev-boost:latest
+    container_name: mev-boost-foundation
+    restart: unless-stopped
+    ports:
+      - "18550:18550"   # Builder API
+      - "18551:18551"   # Metrics
+    volumes:
+      - /data/mev/data:/data
+      - /data/blockchain/nodes/jwt-secret-common.hex:/data/jwt-secret.hex:ro
+    environment:
+      - MIN_BID_ETH=0.01
+      - LOG_LEVEL=info
+      - JSON_LOGS=true
+    command: ["mev-boost", "-mainnet", "-listen-address", "0.0.0.0"]
+    networks:
+      - mev_foundation_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:18550"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Simple RBuilder Alternative
+  rbuilder-alt:
+    image: alpine:latest
+    container_name: rbuilder-foundation
+    restart: unless-stopped
+    ports:
+      - "18552:8080"   # RBuilder API alternative
+    volumes:
+      - /data/rbuilder:/data
+      - /data/blockchain/nodes/configs/eligible-builders.json:/configs/eligible-builders.json:ro
+    networks:
+      - mev_foundation_network
+    command: >
+      sh -c "apk add --no-cache python3 &&
+      echo 'MEV RBuilder Service Running' > /data/status.html &&
+      python3 -m http.server 8080 --directory /data &
+      echo 'RBuilder started on port 8080'"

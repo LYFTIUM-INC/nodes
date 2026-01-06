@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  base-node:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:latest
+    container_name: base-node
+    restart: unless-stopped
+    ports:
+      - "8560:8545"
+      - "8561:8546"
+      - "8562:8551"
+      - "30322:30303"
+    volumes:
+      - /data/blockchain/storage/base:/data
+      - /data/blockchain/storage/base/jwt.hex:/jwt.hex:ro
+    environment:
+      - NETWORK=base-mainnet
+    command:
+      - --datadir=/data
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.api=eth,net,web3,txpool,debug
+      - --http.vhosts=*
+      - --ws
+      - --ws.addr=0.0.0.0
+      - --ws.api=eth,net,web3
+      - --authrpc.addr=0.0.0.0
+      - --authrpc.port=8551
+      - --authrpc.vhosts=*
+      - --authrpc.jwtsecret=/jwt.hex
+      - --syncmode=snap
+      - --maxpeers=50
+    networks:
+      - blockchain
+
+  base-beacon:
+    image: sigp/lighthouse:latest
+    container_name: base-beacon
+    restart: unless-stopped
+    ports:
+      - "5055:5055"
+    volumes:
+      - /data/blockchain/storage/base-beacon:/data
+      - /data/blockchain/storage/base/jwt.hex:/jwt.hex:ro
+    command:
+      - lighthouse
+      - beacon_node
+      - --network=base
+      - --datadir=/data
+      - --http
+      - --execution-endpoint=http://base-node:8551
+      - --execution-jwt=/jwt.hex
+      - --checkpoint-sync-url=https://base.beaconstate.io
+    networks:
+      - blockchain
+
+networks:
+  blockchain:
+    external: true

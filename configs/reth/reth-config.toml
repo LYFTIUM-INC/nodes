@@ -1,0 +1,89 @@
+[default]
+# Reth MEV Configuration
+# Optimized for sub-10ms latency and MEV extraction
+
+# Basic settings
+datadir = "/data"
+http.api = ["eth", "net", "web3", "debug", "trace", "txpool"]
+http.addr = "0.0.0.0"
+http.port = 8545
+http.vhosts = ["*"]
+http.corsdomain = ["*"]
+
+# WebSocket settings
+ws.addr = "0.0.0.0"
+ws.port = 8546
+ws.compression = true
+
+# Network settings
+nat = "any"
+port = 30303
+maxpeers = 100
+discovery.addr = ["enrtree://", "enr://"]
+
+# Sync settings
+sync-mode = "full"
+prune = "auto"
+prune.remote-storage-threshold = "100GB"
+
+# MEV Builder integration
+builder = "mev-builder"
+builder.url = "http://mev-boost:18550"
+builder.fallback-url = "http://fallback-builder:18550"
+builder.extra-data = '{"origin":"MEV-Infra-Reth","version":"1.0.0"}'
+
+# Transaction pool
+tx-pool = true
+tx-pool.max-per-sender = 100
+tx-pool.max-count = 5000
+tx-pool.price-bump = 10
+tx-pool.blobs-force = true
+
+# Debugging
+debug = true
+log.level = "info"
+log.file = "/data/logs/reth.log"
+log.console = true
+
+# Metrics
+metrics = true
+metrics.addr = "0.0.0.0"
+metrics.port = 6060
+
+# Performance optimizations
+cache.size.blocks = 5000
+cache.size.queue = 10000
+cache.size.transaction_receipts = 10000
+
+# Security
+auth.jwt-secret = "/jwt-secret-common.hex"
+auth.addr = "0.0.0.0"
+auth.port = 8551
+priv.url = "http://127.0.0.1:8549"
+priv.allow-l3 = true
+
+[cache]
+# Blockchain cache configuration
+blocks.size = 5000
+blocks.preloaded = 100
+queue.transactions = 10000
+receipts = 10000
+
+[engine]
+# Engine settings for MEV
+cache.queue.max-size = 10000
+cache.state.max-size = 5000
+cache.added-blocks = true
+
+[jsonrpc]
+# JSON-RPC settings
+max-connections = 5000
+batch-requests.max-size = 100
+ws.max-connections = 1000
+
+[metrics]
+# Metrics collection
+enable = true
+prometheus = true
+addr = "0.0.0.0"
+port = 6060

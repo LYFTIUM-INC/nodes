@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  optimism-node:
+    image: us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:latest
+    container_name: optimism-node
+    restart: unless-stopped
+    ports:
+      - "8550:8545"
+      - "8551:8546"
+      - "8553:8551"
+      - "30323:30303"
+    volumes:
+      - /data/blockchain/storage/optimism:/data
+      - /data/blockchain/storage/optimism/jwt.hex:/jwt.hex:ro
+    environment:
+      - NETWORK=op-mainnet
+    command:
+      - --datadir=/data
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.api=eth,net,web3,txpool,debug
+      - --http.vhosts=*
+      - --ws
+      - --ws.addr=0.0.0.0
+      - --ws.api=eth,net,web3
+      - --authrpc.addr=0.0.0.0
+      - --authrpc.port=8551
+      - --authrpc.vhosts=*
+      - --authrpc.jwtsecret=/jwt.hex
+      - --syncmode=snap
+    networks:
+      - blockchain
+
+networks:
+  blockchain:
+    external: true

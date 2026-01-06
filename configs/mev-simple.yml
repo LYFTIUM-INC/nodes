@@ -1,0 +1,52 @@
+version: '3.8'
+
+networks:
+  mev_foundation_network:
+    external: true
+
+services:
+  # MEV Foundation Service
+  mev-service:
+    image: nginx:alpine
+    container_name: mev-foundation-service
+    restart: unless-stopped
+    ports:
+      - "18550:80"
+    volumes:
+      - /data/mev/data:/usr/share/nginx/html:ro
+    networks:
+      - mev_foundation_network
+
+  # MEV Dashboard
+  mev-dashboard:
+    image: nginx:alpine
+    container_name: mev-foundation-dashboard
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    volumes:
+      - /data/mev/dashboard:/usr/share/nginx/html:ro
+    networks:
+      - mev_foundation_network
+
+  # MEV Builder
+  mev-builder:
+    image: nginx:alpine
+    container_name: mev-foundation-builder
+    restart: unless-stopped
+    ports:
+      - "18552:80"
+    volumes:
+      - /data/rbuilder:/usr/share/nginx/html:ro
+    networks:
+      - mev_foundation_network
+
+  # MEV Health
+  mev-health:
+    image: nginx:alpine
+    container_name: mev-foundation-health
+    restart: unless-stopped
+    ports:
+      - "19200:80"
+    networks:
+      - mev_foundation_network

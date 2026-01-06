@@ -1,0 +1,87 @@
+# Blockchain Data (NEVER upload - excludes 2TB+ of data)
+/data/blockchain/storage/
+storage/
+snapshots/
+logs/
+*.log
+*.logs/
+cache/
+temp/
+
+# Sensitive files (NEVER upload)
+*.hex
+*.key
+*.pem
+*.p12
+*.json
+*.enc
+*.backup
+*.bak
+*.old
+jwt-secret*
+
+# Private keys and certificates
+*.key
+*.pem
+*.p12
+*.crt
+*.cer
+*.csr
+
+# System files
+*.pid
+*.sock
+*.lock
+*.LOCK
+
+# Temporary files
+*.tmp
+*.swp
+*~
+.*.swp
+
+# Docker
+docker-compose.override.yml
+.env.local
+*.env
+.env.*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Archive and backups (tracked separately if needed)
+archive/
+backups/
+.old/
+
+# Node modules
+node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+*.egg-info/
+.pnp-store/
+
+# Build artifacts
+target/
+build/
+dist/
+out/
+
+# Data directories
+clients/*/data/
+clients/*/chaindata/
+clients/*/snapshots/
+clients/*/logs/
+
+# ClickHouse data
+clickhouse/
+
+# Logs
+logs/
+*.log.*

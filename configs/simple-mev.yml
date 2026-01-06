@@ -1,0 +1,22 @@
+version: '3.8'
+
+networks:
+  mev_foundation_network:
+    external: true
+
+services:
+  # Simple MEV service for testing
+  mev-service:
+    image: nginx:alpine
+    container_name: mev-service-foundation
+    restart: unless-stopped
+    ports:
+      - "18550:80"   # MEV service API port
+      - "18551:80"   # Metrics (same for demo)
+    volumes:
+      - /data/mev/data:/usr/share/nginx/html:ro
+    networks:
+      - mev_foundation_network
+    command: >
+      sh -c "echo 'MEV Foundation Service Running' > /usr/share/nginx/html/index.html
+      && nginx -g 'daemon off;'"

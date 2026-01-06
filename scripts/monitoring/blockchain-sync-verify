@@ -1,0 +1,590 @@
+#!/bin/bash
+
+# Blockchain Sync Verification System
+# Comprehensive monitoring for Ethereum node synchronization
+# Author: Claude Code
+# Version: 1.0
+
+set -euo pipefail
+
+# Configuration
+DEFAULT_NETWORK="mainnet"
+DEFAULT_VERIFICATION_LEVEL="standard"
+DEFAULT_ALERT_THRESHOLD="moderate"
+DEFAULT_DURATION=10
+DEFAULT_OUTPUT_FORMAT="table"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Logging
+LOG_FILE="/var/log/blockchain_sync_verification.log"
+ALERT_LOG_FILE="/var/log/blockchain_sync_alerts.log"
+
+# Ensure log directories exist
+mkdir -p "$(dirname "$LOG_FILE")"
+mkdir -p "$(dirname "$ALERT_LOG_FILE")"
+
+# Utility functions
+log() {
+    local level=$1
+    shift
+    local message="$*"
+    local timestamp=$(date -Iseconds)
+    echo "$timestamp [$level] $message" | tee -a "$LOG_FILE"
+}
+
+info() {
+    log "INFO" "$*"
+    echo -e "${BLUE}ℹ️  $*${NC}"
+}
+
+success() {
+    log "SUCCESS" "$*"
+    echo -e "${GREEN}✅ $*${NC}"
+}
+
+warning() {
+    log "WARNING" "$*"
+    echo -e "${YELLOW}⚠️  $*${NC}"
+}
+
+error() {
+    log "ERROR" "$*"
+    echo -e "${RED}❌ $*${NC}"
+}
+
+# Alert function
+trigger_alert() {
+    local client=$1
+    local alert_type=$2
+    local message=$3
+    local severity=${4:-"MEDIUM"}
+    local timestamp=$(date -Iseconds)
+
+    echo "$timestamp,$client,$alert_type,$message,$severity" >> "$ALERT_LOG_FILE"
+    error "ALERT [$client]: $alert_type - $message"
+}
+
+# Service status check
+check_service_status() {
+    local service_name=$1
+    if systemctl is-active --quiet "$service_name"; then
+        success "$service_name is running"
+        return 0
+    else
+        error "$service_name is not running"
+        return 1
+    fi
+}
+
+# Network connectivity check
+check_port() {
+    local port=$1
+    local timeout=${2:-5}
+    if nc -z localhost "$port" -w "$timeout" 2>/dev/null; then
+        success "Port $port is accessible"
+        return 0
+    else
+        error "Port $port is not accessible"
+        return 1
+    fi
+}
+
+# RPC call function
+make_rpc_call() {
+    local rpc_url=$1
+    local method=$2
+    local params=${3:-"[]"}
+    local timeout=${4:-10}
+
+    local payload=$(cat << EOF
+{
+    "jsonrpc": "2.0",
+    "method": "$method",
+    "params": $params,
+    "id": $(date +%s)
+}
+EOF
+)
+
+    curl -s --connect-timeout "$timeout" \
+         -X POST \
+         -H "Content-Type: application/json" \
+         -d "$payload" \
+         "$rpc_url" 2>/dev/null
+}
+
+# Erigon sync verification
+verify_erigon_sync() {
+    local network=${1:-"$DEFAULT_NETWORK"}
+    local verification_level=${2:-"$DEFAULT_VERIFICATION_LEVEL"}
+    local rpc_url="http://127.0.0.1:8545"
+
+    info "Verifying Erigon sync status (Network: $network, Level: $verification_level)"
+
+    # Check service status
+    if ! check_service_status "erigon"; then
+        trigger_alert "erigon" "SERVICE_DOWN" "Erigon service is not running" "CRITICAL"
+        return 1
+    fi
+
+    # Check RPC port
+    if ! check_port 8545; then
+        trigger_alert "erigon" "RPC_UNREACHABLE" "RPC port 8545 is not accessible" "CRITICAL"
+        return 1
+    fi
+
+    # Get sync status
+    local sync_response=$(make_rpc_call "$rpc_url" "eth_syncing")
+
+    if [ $? -ne 0 ] || [ -z "$sync_response" ]; then
+        error "Failed to get sync response from Erigon"
+        trigger_alert "erigon" "RPC_FAILURE" "Unable to get sync status via RPC" "HIGH"
+        return 1
+    fi
+
+    # Parse sync status
+    local sync_result=$(echo "$sync_response" | jq -r '.result // false')
+    local block_number=$(echo "$sync_response" | jq -r '.result // "0"')
+
+    if [ "$sync_result" = "false" ]; then
+        success "Erigon is fully synced"
+        sync_status="fully_synced"
+        sync_progress=100
+
+        # Get current block number
+        block_number=$(make_rpc_call "$rpc_url" "eth_blockNumber" | jq -r '.result // "0"')
+        local block_decimal=$((block_number))
+        info "Current block: $block_decimal"
+
+    else
+        warning "Erigon is syncing"
+        sync_status="syncing"
+
+        # Parse sync progress
+        local current=$(echo "$sync_result" | jq -r '.currentBlock // 0')
+        local highest=$(echo "$sync_result" | jq -r '.highestBlock // 0')
+
+        if [ "$current" -gt 0 ] && [ "$highest" -gt 0 ]; then
+            sync_progress=$(echo "scale=2; $current * 100 / $highest" | bc -l)
+            info "Sync progress: ${sync_progress}% (Current: $current, Highest: $highest)"
+        fi
+
+        block_number=$current
+    fi
+
+    # Get peer count
+    local peer_response=$(make_rpc_call "$rpc_url" "net_peerCount")
+    local peer_count=$(echo "$peer_response" | jq -r '.result // "0"')
+    local peer_decimal=$((peer_count))
+    info "Peer count: $peer_decimal"
+
+    # Health assessment
+    local health_score=100
+    local issues=()
+
+    # Check peer count
+    if [ "$peer_decimal" -lt 8 ]; then
+        issues+=("Low peer count: $peer_decimal")
+        health_score=$((health_score - 20))
+    fi
+
+    # Check sync progress
+    if [ "$sync_status" = "syncing" ]; then
+        if (( $(echo "$sync_progress < 50" | bc -l) )); then
+            issues+=("Very low sync progress: ${sync_progress}%")
+            health_score=$((health_score - 30))
+        elif (( $(echo "$sync_progress < 80" | bc -l) )); then
+            issues+=("Low sync progress: ${sync_progress}%")
+            health_score=$((health_score - 15))
+        fi
+    fi
+
+    # Report health
+    if [ "$health_score" -ge 90 ]; then
+        success "Erigon health score: $health_score/100"
+    elif [ "$health_score" -ge 70 ]; then
+        warning "Erigon health score: $health_score/100"
+    else
+        error "Erigon health score: $health_score/100"
+        trigger_alert "erigon" "LOW_HEALTH" "Health score $health_score/100" "MEDIUM"
+    fi
+
+    # Report issues
+    for issue in "${issues[@]}"; do
+        warning "Issue: $issue"
+    done
+
+    # Extended verification for comprehensive mode
+    if [ "$verification_level" = "comprehensive" ] || [ "$verification_level" = "forensic" ]; then
+        perform_comprehensive_erigon_checks "$rpc_url" "$network"
+    fi
+
+    # Return structured result
+    cat << EOF
+{
+    "client": "erigon",
+    "network": "$network",
+    "sync_status": "$sync_status",
+    "sync_progress": $sync_progress,
+    "block_number": $block_number,
+    "peer_count": $peer_decimal,
+    "health_score": $health_score,
+    "issues": $(printf '%s\n' "${issues[@]}" | jq -R . | jq -s .),
+    "timestamp": "$(date -Iseconds)"
+}
+EOF
+}
+
+# Comprehensive Erigon checks
+perform_comprehensive_erigon_checks() {
+    local rpc_url=$1
+    local network=$2
+
+    info "Performing comprehensive Erigon checks..."
+
+    # Check gas price
+    local gas_response=$(make_rpc_call "$rpc_url" "eth_gasPrice")
+    local gas_price=$(echo "$gas_response" | jq -r '.result // "0x0"')
+    local gas_decimal=$((gas_price))
+    info "Gas price: $gas_decimal wei"
+
+    # Check chain ID
+    local chain_response=$(make_rpc_call "$rpc_url" "eth_chainId")
+    local chain_id=$(echo "$chain_response" | jq -r '.result // "0x0"')
+    local chain_decimal=$((chain_id))
+    info "Chain ID: $chain_decimal"
+
+    # Validate chain ID for network
+    local expected_chain_id=1  # Mainnet
+    case "$network" in
+        "mainnet") expected_chain_id=1 ;;
+        "sepolia") expected_chain_id=11155111 ;;
+        "goerli") expected_chain_id=5 ;;
+    esac
+
+    if [ "$chain_decimal" -eq "$expected_chain_id" ]; then
+        success "Chain ID validation passed"
+    else
+        warning "Chain ID mismatch: expected $expected_chain_id, got $chain_decimal"
+        trigger_alert "erigon" "CHAIN_ID_MISMATCH" "Expected $expected_chain_id, got $chain_decimal" "MEDIUM"
+    fi
+
+    # Check latest block details
+    local latest_block=$(make_rpc_call "$rpc_url" "eth_getBlockByNumber" '["latest", false]')
+    if [ $? -eq 0 ] && [ -n "$latest_block" ]; then
+        local block_timestamp=$(echo "$latest_block" | jq -r '.result.timestamp // "0x0"')
+        local timestamp_decimal=$((block_timestamp))
+        local block_age=$(($(date +%s) - timestamp_decimal))
+
+        info "Latest block age: $block_age seconds"
+
+        if [ "$block_age" -lt 300 ]; then  # 5 minutes
+            success "Block timestamp is recent"
+        elif [ "$block_age" -lt 1800 ]; then  # 30 minutes
+            warning "Block timestamp is somewhat old: ${block_age}s"
+        else
+            error "Block timestamp is very old: ${block_age}s"
+            trigger_alert "erigon" "STALE_BLOCK" "Block age ${block_age}s" "HIGH"
+        fi
+    fi
+}
+
+# Cross-node consistency validation
+validate_cross_node_consistency() {
+    local network=${1:-"$DEFAULT_NETWORK"}
+    local tolerance=${2:-3}
+
+    info "Validating cross-node consistency (Network: $network, Tolerance: $tolerance blocks)"
+
+    # This would be expanded to check multiple nodes
+    # For now, we'll validate against external reference
+    local reference_block=$(get_reference_block_number "$network")
+    local local_block=$(get_local_block_number)
+
+    if [ "$reference_block" -gt 0 ] && [ "$local_block" -gt 0 ]; then
+        local block_diff=$((reference_block - local_block))
+        info "Reference block: $reference_block"
+        info "Local block: $local_block"
+        info "Block difference: $block_diff"
+
+        if [ "$block_diff" -le "$tolerance" ]; then
+            success "Node is within acceptable tolerance"
+        elif [ "$block_diff" -le 20 ]; then
+            warning "Node is lagging but may be catching up"
+        else
+            error "Node is significantly behind"
+            trigger_alert "consistency" "MAJOR_LAG" "Block difference $block_diff" "HIGH"
+        fi
+    else
+        warning "Could not validate against external reference"
+    fi
+}
+
+# Get reference block number
+get_reference_block_number() {
+    local network=$1
+
+    case "$network" in
+        "mainnet")
+            # Try multiple public APIs for redundancy
+            local block=$(curl -s --connect-timeout 5 "https://api.etherscan.io/api?module=proxy&action=eth_blockNumber" | jq -r '.result // "0x0"' 2>/dev/null)
+            if [ "$block" != "0x0" ]; then
+                echo $((block))
+                return 0
+            fi
+            ;;
+        "sepolia")
+            local block=$(curl -s --connect-timeout 5 "https://api-sepolia.etherscan.io/api?module=proxy&action=eth_blockNumber" | jq -r '.result // "0x0"' 2>/dev/null)
+            if [ "$block" != "0x0" ]; then
+                echo $((block))
+                return 0
+            fi
+            ;;
+    esac
+
+    echo "0"
+}
+
+# Get local block number
+get_local_block_number() {
+    local rpc_url="http://127.0.0.1:8545"
+    local response=$(make_rpc_call "$rpc_url" "eth_blockNumber")
+    echo "$response" | jq -r '.result // "0"' | xargs -I {} echo "ibase=16; {}" | bc 2>/dev/null || echo "0"
+}
+
+# Performance monitoring
+monitor_performance() {
+    local duration=${1:-"$DEFAULT_DURATION"}
+    local interval=${2:-30}
+
+    info "Starting performance monitoring (Duration: ${duration}m, Interval: ${interval}s)"
+
+    local end_time=$(($(date +%s) + duration * 60))
+    local iteration=0
+
+    while [ $(date +%s) -lt $end_time ]; do
+        iteration=$((iteration + 1))
+        local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+        echo ""
+        echo "--- Iteration $iteration - $timestamp ---"
+
+        # System metrics
+        local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+        local memory_usage=$(free | grep Mem | awk '{printf "%.1f", $3/$2 * 100.0}')
+        local disk_usage=$(df -h / | awk 'NR==2 {print $5}' | cut -d'%' -f1)
+
+        echo "CPU: ${cpu_usage}% | Memory: ${memory_usage}% | Disk: ${disk_usage}%"
+
+        # Check Erigon metrics
+        verify_erigon_sync "$DEFAULT_NETWORK" "basic"
+
+        echo ""
+        sleep "$interval"
+    done
+
+    info "Performance monitoring completed after $iteration iterations"
+}
+
+# Generate summary report
+generate_summary_report() {
+    info "Generating summary report..."
+
+    local report_file="/var/log/blockchain_sync_report_$(date +%Y%m%d_%H%M%S).json"
+
+    # Collect verification data
+    local verification_result=$(verify_erigon_sync "$DEFAULT_NETWORK" "comprehensive")
+    local consistency_result=$(validate_cross_node_consistency "$DEFAULT_NETWORK" 5)
+
+    # Generate JSON report
+    cat > "$report_file" << EOF
+{
+    "report_metadata": {
+        "timestamp": "$(date -Iseconds)",
+        "network": "$DEFAULT_NETWORK",
+        "report_version": "1.0",
+        "generated_by": "$(whoami)",
+        "hostname": "$(hostname)"
+    },
+    "erigon_verification": $verification_result,
+    "consistency_validation": {
+        "status": "completed",
+        "details": "$consistency_result"
+    },
+    "system_info": {
+        "uptime": "$(uptime -p)",
+        "kernel": "$(uname -r)",
+        "memory_total": "$(free -h | grep Mem | awk '{print $2}')",
+        "disk_usage": "$(df -h / | awk 'NR==2 {print $5}')"
+    },
+    "recommendations": $(generate_recommendations "$verification_result")
+}
+EOF
+
+    success "Report generated: $report_file"
+    echo "$report_file"
+}
+
+# Generate recommendations
+generate_recommendations() {
+    local verification_result=$1
+
+    local recommendations="[]"
+
+    # Parse verification result and generate recommendations
+    local health_score=$(echo "$verification_result" | jq -r '.health_score // 0')
+    local sync_status=$(echo "$verification_result" | jq -r '.sync_status // "unknown"')
+    local peer_count=$(echo "$verification_result" | jq -r '.peer_count // 0')
+
+    if [ "$health_score" -lt 70 ]; then
+        recommendations=$(echo "$recommendations" | jq '. + ["Investigate low health score - check system resources and network connectivity"]')
+    fi
+
+    if [ "$sync_status" = "syncing" ]; then
+        recommendations=$(echo "$recommendations" | jq '. + ["Monitor sync progress - consider increasing peer connections if sync is slow"]')
+    fi
+
+    if [ "$peer_count" -lt 8 ]; then
+        recommendations=$(echo "$recommendations" | jq '. + ["Low peer count - check network configuration and firewall settings"]')
+    fi
+
+    echo "$recommendations"
+}
+
+# Main function
+main() {
+    # Parse command line arguments
+    local network="$DEFAULT_NETWORK"
+    local verification_level="$DEFAULT_VERIFICATION_LEVEL"
+    local alert_threshold="$DEFAULT_ALERT_THRESHOLD"
+    local duration="$DEFAULT_DURATION"
+    local output_format="$DEFAULT_OUTPUT_FORMAT"
+    local performance_monitor=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --network)
+                network="$2"
+                shift 2
+                ;;
+            --verification-level)
+                verification_level="$2"
+                shift 2
+                ;;
+            --duration)
+                duration="$2"
+                shift 2
+                ;;
+            --output-format)
+                output_format="$2"
+                shift 2
+                ;;
+            --performance-monitor)
+                performance_monitor=true
+                shift
+                ;;
+            -h|--help)
+                cat << EOF
+Blockchain Sync Verification System
+
+Usage: $0 [OPTIONS]
+
+Options:
+    --network NETWORK           Network to verify (mainnet, sepolia, goerli) [default: mainnet]
+    --verification-level LEVEL  Verification level (basic, standard, comprehensive, forensic) [default: standard]
+    --duration MINUTES          Monitoring duration in minutes [default: 10]
+    --output-format FORMAT      Output format (table, json) [default: table]
+    --performance-monitor       Enable continuous performance monitoring
+    -h, --help                  Show this help message
+
+Examples:
+    $0 --network mainnet --verification-level comprehensive
+    $0 --duration 60 --performance-monitor
+    $0 --output-format json --verification-level forensic
+EOF
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    # Header
+    echo "========================================"
+    echo "Blockchain Sync Verification System"
+    echo "========================================"
+    echo "Network: $network"
+    echo "Verification Level: $verification_level"
+    echo "Timestamp: $(date -Iseconds)"
+    echo ""
+
+    # Run verification
+    info "Starting blockchain sync verification..."
+
+    # Service status checks
+    info "Checking critical services..."
+    check_service_status "erigon"
+    check_service_status "nginx"
+    check_service_status "mev-boost"
+
+    echo ""
+
+    # Network connectivity checks
+    info "Checking network connectivity..."
+    check_port 8545  # Erigon RPC
+    check_port 8546  # Erigon WebSocket (if configured)
+
+    echo ""
+
+    # Node verification
+    verify_erigon_sync "$network" "$verification_level"
+
+    echo ""
+
+    # Cross-node consistency
+    validate_cross_node_consistency "$network" 5
+
+    echo ""
+
+    # Performance monitoring if requested
+    if [ "$performance_monitor" = true ]; then
+        monitor_performance "$duration" 30
+    fi
+
+    # Generate report
+    local report_file=$(generate_summary_report)
+
+    echo ""
+    success "Blockchain sync verification completed"
+    info "Report saved to: $report_file"
+    info "Log file: $LOG_FILE"
+    info "Alert log: $ALERT_LOG_FILE"
+}
+
+# Check dependencies
+check_dependencies() {
+    local missing_deps=()
+
+    for cmd in jq curl nc bc systemctl; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing_deps+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        error "Missing dependencies: ${missing_deps[*]}"
+        error "Please install missing dependencies: sudo apt install ${missing_deps[*]}"
+        exit 1
+    fi
+}
+
+# Run main function with all arguments
+main "$@"

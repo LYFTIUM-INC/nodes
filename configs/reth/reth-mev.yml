@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  reth-ethereum:
+    image: ghcr.io/paradigmxyz/reth:v1.0.0
+    container_name: reth-ethereum-mev
+    restart: unless-stopped
+    ports:
+      - "18545:8545"     # HTTP RPC (MEV-specific)
+      - "18546:8546"     # WebSocket RPC (MEV-specific)
+      - "30303:30303"   # P2P TCP
+      - "30303:30303/udp" # P2P UDP
+      - "18600:6060"     # Metrics (MEV-specific)
+    volumes:
+      - /data/blockchain/storage/reth:/data
+      - /data/blockchain/nodes/configs/reth:/configs
+      - /data/blockchain/nodes/jwt-secret-common.hex:/jwt-secret-common.hex:ro
+    command: |
+      reth
+      --chain mainnet
+      --datadir /data
+      --http
+      --http.addr 0.0.0.0
+      --http.port 8545
+      --http.api eth,net,web3,debug,trace,txpool
+      --http.vhosts *
+      --http.corsdomain *
+      --ws
+      --ws.addr 0.0.0.0
+      --ws.port 8546
+      --ws.compression
+      --metrics
+      --metrics.addr 0.0.0.0
+      --metrics.port 6060
+      --port 30303
+      --maxpeers 100
+      --nat any
+      --tx-pool
+      --debug
+      --prune
+      --sync-mode full
+      --builder mev-builder
+      --builder.url http://mev-boost:18550
+      --builder.fallback-url http://fallback-builder:18550
+      --builder.extra-data '{"origin":"MEV-Infra-Reth"}'
+      --auth.jwt-secret /jwt-secret-common.hex
+      --auth.addr 0.0.0.0
+      --auth.port 8551
+      --priv.url http://127.0.0.1:8549
+      --priv.allow-l3
+      --rpc.port 8545
+      --rpc.max-connections 5000
+      --log.level info
+      --log.file /data/logs/reth.log
+      --log.console
+    environment:
+      - RETH_CHAIN=mainnet
+      - RETH_DEBUG=true
+      - RETH_METRICS=true
+      - RETH_LOG_LEVEL=info
+      - PYTHONPATH=/opt/mev-lab
+      - ENV=production
+    deploy:
+      resources:
+        limits:
+          memory: 32G
+          cpus: "8.0"
+        reservations:
+          memory: 16G
+          cpus: "4.0"
+    networks:
+      - mev_foundation_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+
+networks:
+  mev_foundation_network:
+    external: true
+
+volumes:
+  reth-data:
+    driver: local
+  reth-configs:
+    driver: local
+  jwt-secret-common:
+    driver: local

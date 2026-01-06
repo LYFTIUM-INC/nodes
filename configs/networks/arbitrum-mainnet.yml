@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  arbitrum-node:
+    image: offchainlabs/nitro-node:v2.3.4-rc.5
+    container_name: arbitrum-node
+    restart: unless-stopped
+    ports:
+      - "8548:8547"     # HTTP RPC
+      - "8550:8548"     # WebSocket RPC
+      - "6065:6060"     # Metrics
+    volumes:
+      - /data/blockchain/storage/arbitrum:/home/user/.arbitrum
+    command: |
+      --parent-chain.connection.url=https://ethereum-mainnet.core.chainstack.com/YOUR_API_KEY
+      --chain.id=42161
+      --http.addr=0.0.0.0
+      --http.port=8547
+      --http.vhosts=*
+      --http.corsdomain=*
+      --http.api=net,web3,eth,arb
+      --ws.addr=0.0.0.0
+      --ws.port=8548
+      --ws.origins=*
+      --ws.api=net,web3,eth,arb
+      --metrics
+      --metrics.port=6060
+      --init.download-path=https://snapshot.arbitrum.foundation/arb1/nitro-pruned.tar
+      --init.url=https://snapshot.arbitrum.foundation/arb1/nitro-pruned.tar
+      --node.data-availability.enable
+      --node.data-availability.rest-aggregator.enable
+      --node.data-availability.rest-aggregator.urls=https://anytrust-mainnet.arbitrum.io/daserver
+      --persistent.chain=/home/user/.arbitrum
+      --validation.use-jit=false
+      --node.batch-poster.enable=false
+      --node.dangerous.no-l1-listener=false
+      --p2p.listen-addr=0.0.0.0:9656
+      --p2p.discovery.v5=true
+      --p2p.discovery.bootnodes=enode://e71f59c49987a4c73b2c44063112c8c6e37dd8a5ac88afcf7db6ed0f37e24c49ad2ed6f0fc3c5cc35c0c2ab19bd29efea891e4f6b73c0ab8b4b22e50cf061879@3.209.45.79:30303,enode://17d5d3e48485e4c2ce6cf87c15ae124c87fe92bd0c5ca7e9b7e8174666e0b7c6d4c83b6dd6b2b4e729de28e4e8c96f0b96a45fe1c5c852098f837a38f853b11e@3.212.170.43:30303
+    environment:
+      - ARBITRUM_CHAIN_ID=42161
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '3.0'
+        reservations:
+          memory: 4G
+          cpus: '2.0'
+    networks:
+      - blockchain_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8547"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 600s
+
+networks:
+  blockchain_network:
+    external: true

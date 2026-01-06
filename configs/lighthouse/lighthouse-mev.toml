@@ -1,0 +1,127 @@
+# Lighthouse Configuration - MEV Foundation Optimized
+# Production consensus layer for MEV infrastructure
+
+[default]
+# Main network configuration
+network = "mainnet"
+
+# Data directory
+data-dir = "/data"
+
+# Beacon node configuration
+[beacon]
+# Enable beacon chain functionality
+enable = true
+
+# HTTP API server
+[beacon.http]
+# Enable HTTP API
+enabled = true
+# Listen on all interfaces for RETH integration
+listen-address = "0.0.0.0"
+# Standard port for beacon API
+port = 5052
+# Allow CORS for all origins (MEV integration)
+allow-origin = ["*"]
+
+# Metrics server
+[beacon.metrics]
+# Enable Prometheus metrics
+enabled = true
+# Listen on all interfaces
+listen-address = "0.0.0.0"
+# Metrics port
+port = 5054
+
+# Networking configuration
+[beacon.network]
+# Network settings for optimal peer connections
+subscribe-all-subnets = true
+# Enable discv5 discovery
+discovery-enabled = true
+# Maximum number of peers
+max-peers = 100
+# Minimum number of peers
+min-peers = 25
+# Target number of peers
+target-peers = 50
+
+# Engine API configuration for execution layer communication
+[beacon.engine]
+# Enable Engine API for RETH communication
+enabled = true
+# URL for RETH Engine API (using host network)
+execution-endpoint = "http://host.docker.internal:8551"
+# JWT secret for authentication
+jwt-secret-path = "/jwt.hex"
+# Timeout for execution layer calls
+timeout = 8s
+
+# Builder API configuration for MEV
+[beacon.builder]
+# Enable builder API for MEV integration
+enabled = true
+# Listen on all interfaces
+listen-address = "0.0.0.0"
+# Builder API port
+port = 8552
+# Allow CORS for MEV-Boost
+allow-origin = ["*"]
+
+# Slasher configuration
+[beacon.slasher]
+# Enable slasher for MEV protection
+enabled = true
+# Register validator duties
+enabled = true
+
+# Monitoring and logging
+[beacon.logging]
+# Log level for production
+log-level = "info"
+# Log to file for persistence
+log-file = "/data/logs/beacon.log"
+# Console logging
+log-to-stderr = true
+
+# Database configuration
+[beacon.database]
+# Database URL (using default leveldb)
+url = "leveldb://./beacon.db"
+# Number of compaction threads
+compaction-threads = 2
+
+# Sync configuration
+[beacon.sync]
+# Sync mode (optimistic for performance)
+sync-mode = "optimistic"
+# Maximum number of peers to sync from
+max-sync-peers = 10
+# Sync timeout
+sync-timeout = 120s
+
+[execution]
+# Execution layer settings for RETH integration
+# URL for RETH execution client
+execution-endpoint = "http://host.docker.internal:8551"
+# JWT secret path
+jwt-secret-path = "/jwt.hex"
+# Execution timeout
+timeout = 8s
+# Number of execution blocks to keep
+num-execution-blocks = 512
+
+[validator]
+# Validator client configuration
+# Enable validator client
+enabled = false
+# Auto-import validators from web3signer
+web3-signer-url = ""
+# Enable graffiti
+graffiti = "MEV-Foundation-Lighthouse"
+
+[validator_monitoring]
+# Enable validator monitoring
+enabled = false
+# Prometheus metrics
+prometheus-enabled = false

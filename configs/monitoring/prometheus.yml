@@ -1,0 +1,45 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+scrape_configs:
+  # MEV-Boost metrics
+  - job_name: 'mev-boost-foundation'
+    static_configs:
+      - targets: ['mev-boost-foundation:18551']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    scheme: http
+
+  # RBuilder metrics
+  - job_name: 'rbuilder-foundation'
+    static_configs:
+      - targets: ['rbuilder-foundation:18561']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    scheme: http
+
+  # Bundle Router metrics
+  - job_name: 'bundle-router-foundation'
+    static_configs:
+      - targets: ['bundle-router-foundation:18571']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    scheme: http
+
+  # Node Exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['localhost:9100']
+    scrape_interval: 10s
+
+  # Ethereum Node metrics
+  - job_name: 'ethereum-node'
+    static_configs:
+      - targets: ['localhost:6060']
+    scrape_interval: 5s
+    metrics_path: /debug/metrics/prometheus
+    scheme: http

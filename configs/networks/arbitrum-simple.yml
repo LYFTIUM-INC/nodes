@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  arbitrum-node:
+    image: offchainlabs/nitro-node:v3.2.1-d81324d
+    container_name: arbitrum-node
+    restart: unless-stopped
+    ports:
+      - "8548:8547"     # HTTP RPC
+      - "8550:8548"     # WebSocket RPC
+      - "6065:6060"     # Metrics
+    volumes:
+      - /data/blockchain/storage/arbitrum:/home/user/.arbitrum
+    command: |
+      --parent-chain.connection.url=https://eth-mainnet.public.blastapi.io
+      --chain.id=42161
+      --http.addr=0.0.0.0
+      --http.port=8547
+      --http.vhosts=*
+      --http.corsdomain=*
+      --http.api=net,web3,eth,arb
+      --ws.addr=0.0.0.0
+      --ws.port=8548
+      --ws.origins=*
+      --ws.api=net,web3,eth,arb
+      --metrics
+      --pprof
+      --pprof-addr=0.0.0.0
+      --init.url=https://snapshot.arbitrum.foundation/arb1/nitro-pruned.tar
+      --node.data-availability.enable
+      --node.data-availability.rest-aggregator.enable
+      --node.data-availability.rest-aggregator.urls=https://anytrust-mainnet.arbitrum.io/daserver
+      --validation.use-jit=false
+      --node.batch-poster.enable=false
+      --p2p.discovery.v5=true
+      --p2p.discovery.bootnodes=enode://eef91d714494a1ceb6e06e5ce96fe5d7d25d3701b2d2e68c042b33d5fa0e4bf134116e06947b3f40b0f22db08f104504dd2e5c790d8bcbb6bfb1b7f4f85313ec@43.200.206.40:30303,enode://0e59a37fa02de5b0ddb21ce4b77a2e7d9eaebbe0c3f455e64a867d2c910ac41bd0c8a5222e2815f0bfb5ae70313231c8f9a9245114e89dad8564a22671aed4ad@18.213.200.99:30303
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '3.0'
+    networks:
+      - blockchain_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8547"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 600s
+
+networks:
+  blockchain_network:
+    external: true

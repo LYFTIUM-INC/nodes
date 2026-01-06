@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  ethereum-geth:
+    image: ethereum/client-go:v1.13.15
+    container_name: ethereum-geth
+    restart: unless-stopped
+    ports:
+      - "8545:8545"     # HTTP RPC
+      - "8546:8546"     # WebSocket RPC  
+      - "30303:30303"   # P2P TCP
+      - "30303:30303/udp" # P2P UDP
+      - "6060:6060"     # Metrics
+    volumes:
+      - /data/blockchain/storage/ethereum:/root/.ethereum
+    command: |
+      --mainnet
+      --http
+      --http.addr=0.0.0.0
+      --http.port=8545
+      --http.api=eth,net,web3,debug,txpool
+      --http.vhosts='*'
+      --http.corsdomain='*'
+      --ws
+      --ws.addr=0.0.0.0
+      --ws.port=8546
+      --ws.api=eth,net,web3,debug,txpool
+      --ws.origins='*'
+      --metrics
+      --metrics.addr=0.0.0.0
+      --metrics.port=6060
+      --nat=extip:51.159.82.58
+      --syncmode=snap
+      --maxpeers=50
+      --cache=2048
+      --bootnodes=enode://d860a01f9722d78051619d1e2351aba3f43f943f6f00718d1b9baa4101932a1f5011f16bb2b1bb35db20d6fe28fa0bf09636d26a87d31de9ec6203eeedb1f666@18.138.108.67:30303,enode://22a8232c3abc76a16ae9d6c3b164f98775fe226f0917b0ca871128a74a8e9630b458460865bab457221f1d448dd9791d24c4e5d88786180ac185df813a68d4de@3.209.45.79:30303,enode://ca6de62fce278f96aea6ec5a2daadb877e51651247cb96ee310a318def462913b653963c155a0ef6c7d50048bba6e6cea881130857413d9f50a621546b590758@52.176.100.77:30303,enode://279944d8dcd428dffaa7436f25ca0ca43ae19e7bcf94a8fb7d1641651f92d121e972ac2e8f381414b80cc8e5555811c2ec6e1a99bb009b3f53c4c69923e11bd8@35.158.244.151:30303
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: "3.0"
+    networks:
+      - blockchain_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+networks:
+  blockchain_network:
+    external: true

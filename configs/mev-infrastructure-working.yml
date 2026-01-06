@@ -1,0 +1,115 @@
+version: '3.8'
+
+networks:
+  mev_foundation_network:
+    external: true
+
+services:
+  # RBuilder - Advanced block building (running independently)
+  rbuilder:
+    image: builder0x69/rbuilder:latest
+    container_name: rbuilder-foundation
+    restart: unless-stopped
+    ports:
+      - "18550:18550"   # Builder API
+      - "8547:8547"     # RPC
+      - "6065:6065"     # Metrics
+    volumes:
+      - ./configs/rbuilder:/configs
+      - /data/rbuilder:/data
+      - /data/blockchain/nodes/jwt-secret-common.hex:/data/jwt-secret.hex:ro
+      - /data/blockchain/nodes/data/builder-extra-data.json:/data/extra-data.json
+    environment:
+      - RBUILDER_BUILDER_API_PORT=18550
+      - RBUILDER_RPC_PORT=8547
+      - RBUILDER_METRICS_PORT=6065
+      - RBUILDER_SECRET_KEY=/data/builder-key.json
+      - RBUILDER_ELIGIBLE_ADDRESSES_FILE=/configs/eligible-builders.json
+      - RBUILDER_BUILDER_NAME=MEV-Foundation-Builder
+      - RBUILDER_GAS_LIMIT=30000000
+      - RBUILDER_MAX_PROFIT_MARGIN=5
+      - RBUILDER_MIN_PROFIT_MARGIN=0.1
+      - RBUILDER_LOG_LEVEL=info
+      - RBUILDER_REORG_DELAY=3
+      - ENV=production
+      - PYTHONPATH=/opt/mev-lab
+    command: |
+      rbuilder
+      --secret-key-file /data/builder-key.json
+      --builder-api-port 18550
+      --rpc-port 8547
+      --metrics-port 6065
+      --eligible-addresses-file /configs/eligible-builders.json
+      --builder-name MEV-Foundation-Builder
+      --gas-limit 30000000
+      --max-profit-margin 5
+      --min-profit-margin 0.1
+      --log-level info
+      --reorg-delay 3
+      --extra-data-file /data/extra-data.json
+      --rpc-url http://host.docker.internal:8545
+    networks:
+      - mev_foundation_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:18550"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-mev-foundation
+    restart: unless-stopped
+    ports:
+      - "19091:9090"     # Different port to avoid conflict
+    volumes:
+      - /data/blockchain/nodes/configs/monitoring/prometheus-foundation.yml:/etc/prometheus/prometheus.yml:ro
+      - /data/blockchain/nodes/monitoring/rules:/etc/prometheus/rules
+      - prometheus-foundation-data:/prometheus/data
+    command: |
+      --config.file=/etc/prometheus/prometheus.yml \
+      --storage.tsdb.path=/prometheus/data \
+      --web.console.templates=/etc/prometheus/console \
+      --web.console.libraries=/etc/prometheus/console_libraries
+    networks:
+      - mev_foundation_network
+    depends_on:
+      - rbuilder
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-mev-foundation
+    restart: unless-stopped
+    ports:
+      - "3001:3000"     # Different port to avoid conflict
+    volumes:
+      - /data/blockchain/nodes/configs/grafana:/etc/grafana
+      - /data/blockchain/nodes/data/grafana-foundation:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=mev_foundation_2025
+      - PYTHONPATH=/opt/mev-lab
+    networks:
+      - mev_foundation_network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# Volume definitions
+volumes:
+  prometheus-foundation-data:
+    driver: local
+  rbuilder-data:
+    driver: local
+  grafana-foundation-data:
+    driver: local

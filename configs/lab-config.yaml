@@ -1,0 +1,149 @@
+# Blockchain Data Lab Configuration
+# Central configuration management for all blockchain infrastructure
+
+---
+lab_info:
+  name: "MEV-Optimized Blockchain Data Lab"
+  version: "1.0.0"
+  description: "Production-ready blockchain infrastructure with MEV extraction capabilities"
+  created: "2025-10-13"
+  last_updated: "2025-10-13"
+
+---
+networks:
+  ethereum:
+    name: "Ethereum Mainnet"
+    chain_id: 1
+    consensus: "Proof of Stake"
+    primary_clients: ["geth", "erigon", "mev-geth"]
+
+  sepolia:
+    name: "Ethereum Sepolia Testnet"
+    chain_id: 11155111
+    consensus: "Proof of Stake"
+    primary_clients: ["geth", "erigon"]
+
+---
+performance_tuning:
+  default_cache_size: 4096
+  max_peers:
+    geth: 50
+    erigon: 120
+    mev-geth: 100
+  sync_modes:
+    geth: "snap"
+    erigon: "snap"
+    mev-geth: "light"
+
+---
+mev_configuration:
+  builder_networks:
+    - name: "flashbots"
+      url: "https://builder-relay.flashbots.net"
+      priority: 1
+    - name: "rsync"
+      url: "https://rsync-builder.xyz"
+      priority: 2
+    - name: "builder0x"
+      url: "https://api.builder0x.io"
+      priority: 3
+
+  api_endpoints:
+    builder_api: "https://builder-relay.flashbots.net"
+    mev_api: "https://mev.flashbots.net"
+
+  performance_settings:
+    bundle_processing: true
+    fast_execution: true
+    builder_timeout: 5000
+
+---
+security_configuration:
+  ssl_enabled: true
+  jwt_rotation_days: 90
+  firewall_rules:
+    - allow: ["127.0.0.1/8", "10.0.0.0/8"]
+    - deny: ["0.0.0.0/0"]
+
+---
+monitoring_configuration:
+  sync_verification:
+    interval_seconds: 60
+    alert_thresholds:
+      conservative:
+        min_peers: 25
+        max_cpu: 70
+        max_memory: 85
+      moderate:
+        min_peers: 15
+        max_cpu: 85
+        max_memory: 90
+      aggressive:
+        min_peers: 8
+        max_cpu: 95
+        max_memory: 95
+
+  performance_monitoring:
+    collection_interval: 30
+    retention_days: 30
+
+  alerts:
+    enabled: true
+    notification_channels: ["console", "file"]
+    log_file: "/var/log/blockchain_lab_alerts.log"
+
+---
+maintenance_configuration:
+  backup:
+    enabled: true
+    schedule: "daily"
+    retention_days: 7
+    paths:
+      - "/data/blockchain/storage"
+      - "/data/blockchain/configs"
+      - "/data/blockchain/security"
+
+  log_rotation:
+    enabled: true
+    max_size: "100MB"
+    max_backups: 10
+    compress: true
+
+  updates:
+    maintenance_window: "02:00-04:00 UTC"
+    auto_restart: false
+    rolling_updates: true
+
+---
+development_configuration:
+  testing:
+    enabled: true
+    test_networks: ["sepolia"]
+    performance_tests: true
+
+  documentation:
+    auto_generate: true
+    update_on_changes: true
+    output_format: "markdown"
+
+  debugging:
+    log_level: "info"
+    enable_profiling: false
+    capture_crash_logs: true
+
+---
+compliance_configuration:
+  audit_logging:
+    enabled: true
+    retention_days: 365
+    include_sensitive_data: false
+
+  access_control:
+    method: "role_based"
+    default_permissions: "read"
+    admin_permissions: "full"
+
+  reporting:
+    compliance_reports: "monthly"
+    include_metrics: ["uptime", "security", "performance"]
+    format: "pdf"

@@ -1,0 +1,236 @@
+version: '3.8'
+
+networks:
+  mev_production_network:
+    external: true
+
+services:
+  # MEV-Boost - Builder API
+  mev-boost:
+    image: flashbots/mev-boost:latest
+    container_name: mev-boost
+    restart: unless-stopped
+    ports:
+      - "18550:18550"   # Builder API
+      - "18551:18551"   # Metrics
+    volumes:
+      - ./configs/mev-boost:/configs
+      - /data/mev/data:/data
+      - /data/blockchain/nodes/jwt-secret-common.hex:/data/jwt-secret.hex:ro
+    environment:
+      - FLASHBOTS_PROTECT_API_KEY=${FLASHBOTS_KEY}
+      - BOOST_RELAY_ENDPOINT=http://relay.flashbots.net
+      - BOOST_PAYOUT_ENDPOINT=http://payout.flashbots.net
+      - BOOST_CHECK_RELAY_INTERVAL=1000
+      - BOOST_GENESIS_FORKS_FILE=/configs/genesis-forks.json
+      - BOOST_BUILDER_API_PORT=18550
+      - BOOST_METRICS_PORT=18551
+      - BOOST_MIN_BID_ETH=0.01
+      - BOOST_BID_TTL=6
+      - BOOST_PRIVATE_KEY_FILE=/data/mev-boost-key.json
+      - BOOST_REORG_EXTRA_DATA=true
+      - BOOST_BUILDER_EXTRA_DATA_FILE=/data/builder-extra-data.json
+      - BOOST_LOG_LEVEL=info
+      - BOOST_LOG_FORMAT=json
+      - BOOST_RPC_URL=http://127.0.0.1:8545
+      - BOOST_RPC_TIMEOUT=5000
+      - BOOST_MAX_CONNECTIONS=100
+      - BOOST_RATE_LIMIT_PER_SEC=1000
+      - RELAYS=https://0xa1559ace749633b994cbf2b7a567c85db40f0b32c4d8e4a54d5d5abf5770ad683a4c8b0f@boost-relay.flashbots.net
+      - PYTHONPATH=/opt/mev-lab
+      - ENV=production
+    command: ["mev-boost", "-mainnet"]
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: "2.0"
+        reservations:
+          memory: 4G
+          cpus: "1.0"
+    networks:
+      - mev_production_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:18550"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # RBuilder Integration
+  rbuilder:
+    image: builder0x69/rbuilder:latest
+    container_name: rbuilder-mev
+    restart: unless-stopped
+    ports:
+      - "18550:18550"   # Builder API (shared with MEV-Boost)
+      - "8547:8547"     # RPC
+      - "6065:6065"     # Metrics
+    volumes:
+      - ./configs/rbuilder:/configs
+      - /data/rbuilder:/data
+      - /data/blockchain/nodes/jwt-secret-common.hex:/data/jwt-secret.hex:ro
+    environment:
+      - RBUILDER_BUILDER_API_PORT=18550
+      - RBUILDER_RPC_PORT=8547
+      - RBUILDER_METRICS_PORT=6065
+      - RBUILDER_SECRET_KEY=/data/builder-key.json
+      - RBUILDER_ELIGIBLE_ADDRESSES_FILE=/configs/eligible-builders.json
+      - RBUILDER_BUILDER_NAME=MEV-Infra-Builder
+      - RBUILDER_GAS_LIMIT=30000000
+      - RBUILDER_MAX_PROFIT_MARGIN=5
+      - RBUILDER_MIN_PROFIT_MARGIN=0.1
+      - RBUILDER_PRIVATE_KEY_FILE=/data/private-key.json
+      - RBUILDER_LOG_LEVEL=info
+      - RBUILDER_CHECK_RELAY=true
+      - RBUILDER_REORG_DELAY=3
+      - RBUILDER_EXTRA_DATA_FILE=/data/extra-data.json
+      - PYTHONPATH=/opt/mev-lab
+      - ENV=production
+    command: |
+      rbuilder
+      --secret-key-file /data/builder-key.json
+      --builder-api-port 18550
+      --rpc-port 8547
+      --metrics-port 6065
+      --eligible-addresses-file /configs/eligible-builders.json
+      --builder-name MEV-Infra-Builder
+      --gas-limit 30000000
+      --max-profit-margin 5
+      --min-profit-margin 0.1
+      --log-level info
+      --check-relay
+      --reorg-delay 3
+      --extra-data-file /data/extra-data.json
+      --rpc-url http://127.0.0.1:8545
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+          cpus: "4.0"
+        reservations:
+          memory: 6G
+          cpus: "2.0"
+    networks:
+      - mev_production_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:18550"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    depends_on:
+      - mev-boost
+
+  # Flashbots Integration Service
+  flashbots-client:
+    image: flashbots/flashbots-proxy:latest
+    container_name: flashbots-client
+    restart: unless-stopped
+    ports:
+      - "8548:8548"     # Flashbots RPC proxy
+    environment:
+      - FLASHBOTS_PROTECT_HTTP_URL=https://protect.flashbots.net
+      - FLASHBOTS_RELAY_HTTP_URL=https://relay.flashbots.net
+      - FLASHBOTS_BUILDER_URL=https://builder.flashbots.net
+      - ETHEREUM_RPC_URL=http://127.0.0.1:8545
+      - LOG_LEVEL=info
+    networks:
+      - mev_production_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8548"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# Monitoring services
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-mev
+    restart: unless-stopped
+    ports:
+      - "19090:9090"
+    volumes:
+      - /data/blockchain/nodes/docker/services/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /data/blockchain/nodes/monitoring/rules:/etc/prometheus/rules
+    command: |
+      --config.file=/etc/prometheus/prometheus.yml \
+      --storage.tsdb.path=/prometheus/data \
+      --web.console.templates=/etc/prometheus/console \
+      --web.console.libraries=/etc/prometheus/console_libraries
+    networks:
+      - mev_production_network
+    depends_on:
+      - mev-boost
+      - rbuilder
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-mev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - /data/blockchain/nodes/configs/grafana:/etc/grafana
+      - /data/blockchain/nodes/data/grafana:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=mev_admin_2025
+      - PYTHONPATH=/opt/mev-lab
+    networks:
+      - mev_production_network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Alerting
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager-mev
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - /data/blockchain/nodes/configs/alertmanager:/etc/alertmanager
+      - /data/blockchain/nodes/data/alertmanager
+    environment:
+      - PYTHONPATH=/opt/mev-lab
+    networks:
+      - mev_production_network
+    depends_on:
+      - prometheus
+    command:
+      --config.file=/etc/alertmanager/alertmanager.yml
+      --storage.path=/data/alertmanager/data
+      --log.level=info
+
+# Volume definitions
+volumes:
+  reth-data:
+    driver: local
+  rbuilder-data:
+    driver: local
+  jwt-secret-common:
+    driver: local
+  mev-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  alertmanager-data:
+    driver: local
+  configs:
+    driver: local
+  monitoring:
+    driver: local
+  grafana:
+    driver: local
+  alertmanager:
+    driver: local

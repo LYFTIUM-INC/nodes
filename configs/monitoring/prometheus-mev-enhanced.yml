@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'mev-boost'
+    static_configs:
+      - targets: ['host.docker.internal:18551']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  - job_name: 'reth-node'
+    static_configs:
+      - targets: ['host.docker.internal:28600']
+    scrape_interval: 5s
+    metrics_path: /metrics
+
+  - job_name: 'geth-node'
+    static_configs:
+      - targets: ['host.docker.internal:8545']
+    scrape_interval: 5s
+    metrics_path: /metrics

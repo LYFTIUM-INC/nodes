@@ -1,0 +1,126 @@
+# Geth Backup Node Configuration
+# Production-grade settings for MEV operations backup node
+
+network: mainnet
+syncmode: snap
+datadir: /data/blockchain/storage/geth-backup
+authrpc.jwtsecret: /data/blockchain/storage/jwt-secret-common.hex
+
+# HTTP RPC Configuration
+http:
+  addr: "0.0.0.0:8549"
+  api: "eth,net,web3,debug,txpool"
+  cors: ["*"]
+  vhosts: ["*"]
+
+# WebSocket Configuration
+ws:
+  addr: "0.0.0.0:8550"
+  origins: ["*"]
+
+# Authenticated RPC Configuration
+authrpc:
+  addr: "0.0.0.0:8554"
+  jwtsecret: /data/blockchain/storage/jwt-secret-common.hex
+  vhosts: ["localhost"]
+
+# P2P Networking
+p2p:
+  discovery.v5: true
+  maxpeers: 100
+  port: 30312
+  netrestrict: ["127.0.0.0/8"]
+  nat: ["extip:80.80.80.80"]
+
+# Performance Optimization for MEV
+cache:
+  database: 4096
+  trie: 1024
+  trie-incremental: 1024
+  trie-journal: 1024
+  gc: 64
+  copy-on-write: true
+  noPrefetch: false
+
+# Gas Settings for MEV Operations
+gasprice: "2000000000"
+gascap: 0
+maxpeers: 50
+
+# Transaction Pool
+txpool:
+  locals: 0
+  journal: 1024
+  reorg: 200
+  pricebump: 10
+  pricelimit: 1000000000
+  accountslots: 16
+  globalslots: 4096
+
+# HTTP API Configuration
+http_apis:
+  - eth_blockNumber
+  - eth_getBlockByNumber
+  - eth_getTransactionReceipt
+  - eth_estimateGas
+  - net_peerCount
+  - net_listening
+  - web3_clientVersion
+  - debug_traceTransaction
+  - debug_traceBlockByNumber
+  - debug_traceCall
+  - txpool_status
+  - txpool_content
+
+# Mining Settings (disabled for backup node)
+miner:
+  enabled: false
+  gaslimit: 9000000
+  gasprice: 2000000000
+  recommitperiod: 3
+  nethermind: 0
+  extradata: "0x41"
+
+# Metrics and Monitoring
+metrics:
+  enabled: true
+  port: 6069
+  exp: true
+  addr: "0.0.0.0:6069"
+  pprof: true
+  memprof: true
+
+# Logging
+log:
+  file: "/data/blockchain/nodes/logs/geth-backup.log"
+  level: "info"
+  maxsize: 64
+  vmodule: false
+
+# Snap Sync Configuration
+syncsnap:
+  cache: 4294967296
+  keepsyncs: 4
+  timeout: 60m
+
+# State Pruning (for production)
+pruning:
+  # Prune ancient receipts from disk
+  receipts: false
+  # Prune ancient senders from disk
+  senders: false
+  # Prune transaction lookup indices
+  trie: false
+
+# Security Settings
+security:
+  private.api: ["eth", "net", "web3"]
+  debug: false
+  # Additional security can be added as needed
+
+# Node Identification
+identity:
+  version: "Geth/Production-MEV-Backup"
+
+# Additional production settings
+# This config is optimized for backup node in MEV infrastructure

@@ -1,0 +1,149 @@
+version: '3.8'
+
+networks:
+  mev_foundation_network:
+    external: true
+
+services:
+  # MEV-Boost - Flashbots Builder API
+  mev-boost:
+    image: flashbots/mev-boost:latest
+    container_name: mev-boost-foundation
+    restart: unless-stopped
+    ports:
+      - "18550:18550"   # Builder API
+      - "18551:18551"   # Metrics
+    volumes:
+      - ./configs/mev-boost:/configs
+      - /data/mev/data:/data
+    environment:
+      - MEV_BOOST_MIN_BID=0.01
+      - MEV_BOOST_LOG_LEVEL=info
+      - MEV_BOOST_LOG_FORMAT=json
+    command: ["mev-boost", "-mainnet", "-relay", "https://0xa1559ace749633b994cbf2b7a567c85db40f0b32c4d8e4a54d5d5abf5770ad683a4c8b0f9@boost-relay.flashbots.net"]
+    networks:
+      - mev_foundation_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:18550"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # RBuilder - Advanced Block Builder
+  rbuilder:
+    image: builder0x69/rbuilder:latest
+    container_name: rbuilder-foundation
+    restart: unless-stopped
+    ports:
+      - "18560:18560"   # Builder API
+      - "18561:18561"   # Metrics
+      - "8550:8550"     # RPC
+    volumes:
+      - ./configs/rbuilder:/configs
+      - /data/rbuilder:/data
+    environment:
+      - RBUILDER_BUILDER_API_PORT=18560
+      - RBUILDER_METRICS_PORT=18561
+      - RBUILDER_RPC_PORT=8550
+      - RBUILDER_BUILDER_NAME=MEV-Foundation-Builder
+      - RBUILDER_MIN_PROFIT_MARGIN=0.01
+      - RBUILDER_LOG_LEVEL=info
+      - RBUILDER_ETH_RPC_URL=http://127.0.0.1:8545
+    command: ["rbuilder", "--builder-api-port", "18560", "--metrics-port", "18561", "--rpc-port", "8550", "--min-profit-margin", "0.01"]
+    networks:
+      - mev_foundation_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:18560"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    depends_on:
+      - mev-boost
+
+  # Bundle Router - Transaction Routing
+  bundle-router:
+    image: ghcr.io/flashbots/bundle-router:latest
+    container_name: bundle-router-foundation
+    restart: unless-stopped
+    ports:
+      - "18570:18570"   # Router API
+      - "18571:18571"   # Metrics
+    volumes:
+      - ./configs/bundle-router:/configs
+      - /data/bundle-router:/data
+    environment:
+      - BUNDLE_ROUTER_PORT=18570
+      - BUNDLE_ROUTER_METRICS_PORT=18571
+      - BUNDLE_ROUTER_RPC_URL=http://127.0.0.1:8545
+      - BUNDLE_ROUTER_MEV_BOOST_URL=http://mev-boost:18550
+      - BUNDLE_ROUTER_LOG_LEVEL=info
+      - BUNDLE_ROUTER_MAX_BUNDLE_SIZE=100
+      - BUNDLE_ROUTER_TIMEOUT_MS=5000
+    command: ["bundle-router", "--port", "18570", "--metrics-port", "18571", "--rpc-url", "http://127.0.0.1:8545", "--mev-boost-url", "http://mev-boost:18550"]
+    networks:
+      - mev_foundation_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:18570"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - mev-boost
+      - rbuilder
+
+  # Monitoring - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-mev
+    restart: unless-stopped
+    ports:
+      - "19090:9090"
+    volumes:
+      - ./configs/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./configs/monitoring/rules:/etc/prometheus/rules
+      - prometheus_data:/prometheus
+    command: |
+      --config.file=/etc/prometheus/prometheus.yml \
+      --storage.tsdb.path=/prometheus \
+      --web.console.templates=/etc/prometheus/console \
+      --web.console.libraries=/etc/prometheus/console_libraries
+    networks:
+      - mev_foundation_network
+    depends_on:
+      - mev-boost
+      - rbuilder
+      - bundle-router
+
+  # Monitoring - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-mev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./configs/grafana:/etc/grafana
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=mev_foundation_2025
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-worldmap-panel
+    networks:
+      - mev_foundation_network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

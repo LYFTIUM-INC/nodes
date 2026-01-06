@@ -1,0 +1,78 @@
+groups:
+  - name: MEV Foundation Infrastructure Alerts
+    rules:
+      # MEV-Boost alerts
+      - alert: MEVBoostDown
+        expr: up{job="mev-boost-foundation"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MEV-Boost is down"
+          description: "MEV-Boost has been down for more than 1 minute"
+
+      - alert: MEVBoostHighLatency
+        expr: mev_boost_request_duration_seconds > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MEV-Boost high latency"
+          description: "MEV-Boost request latency is above 500ms"
+
+      # RBuilder alerts
+      - alert: RBuilderDown
+        expr: up{job="rbuilder-foundation"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RBuilder is down"
+          description: "RBuilder has been down for more than 1 minute"
+
+      - alert: RBuilderLowProfitMargin
+        expr: rbuilder_profit_margin_eth < 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RBuilder low profit margin"
+          description: "RBuilder profit margin is below 0.01 ETH"
+
+      # Bundle Router alerts
+      - alert: BundleRouterDown
+        expr: up{job="bundle-router-foundation"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Bundle Router is down"
+          description: "Bundle Router has been down for more than 1 minute"
+
+      - alert: BundleRouterHighFailureRate
+        expr: bundle_router_failure_rate > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Bundle Router high failure rate"
+          description: "Bundle Router failure rate is above 10%"
+
+      # Ethereum node alerts
+      - alert: EthereumNodeDown
+        expr: up{job="ethereum-node"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Ethereum node is down"
+          description: "Ethereum node has been down for more than 1 minute"
+
+      - alert: EthereumNodeHighLatency
+        expr: eth_block_processing_time_seconds > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ethereum node high latency"
+          description: "Ethereum block processing time is above 100ms"

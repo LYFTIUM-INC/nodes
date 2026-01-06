@@ -1,0 +1,373 @@
+#!/bin/bash
+#
+# Blockchain Sync Verification - Unified Command Interface
+# Organized wrapper for all blockchain sync verification functionality
+#
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+CONFIG_FILE="${CONFIG_FILE:-$PROJECT_ROOT/etc/sync_verifier.conf}"
+
+# Default values
+NODE_TYPE="all"
+NETWORK="mainnet"
+VERIFICATION_LEVEL="standard"
+ALERT_THRESHOLD="moderate"
+OUTPUT_FORMAT="table"
+DURATION=10
+COMPARE_NODES=true
+EXPORT_FILE=""
+QUICK_CHECK=false
+INTEGRITY_MONITOR=false
+PERFORMANCE_ANALYSIS=false
+GENERATE_REPORT=false
+
+# Function to display header
+display_header() {
+    echo -e "${PURPLE}================================================${NC}"
+    echo -e "${PURPLE}🔍 BLOCKCHAIN SYNC VERIFICATION SYSTEM${NC}"
+    echo -e "${PURPLE}================================================${NC}"
+    echo -e "${BLUE}Node Type: ${NODE_TYPE}${NC}"
+    echo -e "${BLUE}Network: ${NETWORK}${NC}"
+    echo -e "${BLUE}Verification Level: ${VERIFICATION_LEVEL}${NC}"
+    echo -e "${BLUE}Alert Threshold: ${ALERT_THRESHOLD}${NC}"
+    echo -e "${BLUE}Output Format: ${OUTPUT_FORMAT}${NC}"
+    echo -e "${BLUE}Timestamp: $(date -Iseconds)${NC}"
+    echo -e "${PURPLE}================================================${NC}"
+}
+
+# Function to show help
+show_help() {
+    cat << EOF
+${CYAN}Blockchain Sync Verification System${NC}
+
+${GREEN}USAGE:${NC}
+    $0 [OPTIONS]
+
+${GREEN}OPTIONS:${NC}
+    --node-type TYPE          Node type (geth, erigon, nethermind, besu, all) [default: all]
+    --network NETWORK         Network (mainnet, sepolia, holesky, goerli, all) [default: mainnet]
+    --verification-level LEVEL Verification depth (basic, standard, comprehensive, forensic) [default: standard]
+    --alert-threshold THRESHOLD Alert sensitivity (conservative, moderate, aggressive) [default: moderate]
+    --output-format FORMAT    Output format (json, yaml, table, dashboard) [default: table]
+    --duration MINUTES        Monitoring duration in minutes [default: 10]
+    --compare-nodes           Compare nodes for consistency [default: true]
+    --export FILE             Export results to file
+    --config FILE             Configuration file path [default: $PROJECT_ROOT/etc/sync_verifier.conf]
+
+    ${YELLOW}Specialized Options:${NC}
+    --quick-check            Perform quick sync status check
+    --monitor-integrity       Monitor blockchain integrity
+    --analyze-performance     Analyze performance metrics
+    --generate-report        Generate comprehensive report
+    --list-clients           List available client configurations
+    --list-networks          List available network configurations
+    --status                 Show current system status
+
+    --help, -h               Show this help message
+
+${GREEN}EXAMPLES:${NC}
+    # Basic verification
+    $0 --node-type all --network mainnet
+
+    # Quick status check
+    $0 --quick-check --network mainnet
+
+    # Comprehensive analysis
+    $0 --verification-level comprehensive --duration 30
+
+    # Monitor integrity
+    $0 --monitor-integrity --network mainnet --duration 15
+
+    # Generate report
+    $0 --generate-report --export report.json
+
+${GREEN}CLIENTS:${NC}
+    Ethereum: geth, erigon, nethermind, besu
+    L2: arbitrum, optimism, base, polygon
+    Alternative: avalanche, solana, bsc
+
+${GREEN}NETWORKS:${NC}
+    Mainnet, Sepolia, Holesky, Goerli
+
+EOF
+}
+
+# Function to list available clients
+list_clients() {
+    echo -e "${CYAN}Available Blockchain Clients:${NC}"
+    echo ""
+    echo -e "${YELLOW}Ethereum Clients:${NC}"
+    if [ -d "$PROJECT_ROOT/clients/ethereum" ]; then
+        for client in "$PROJECT_ROOT/clients/ethereum"/*; do
+            if [ -d "$client" ]; then
+                echo "  - $(basename "$client")"
+            fi
+        done
+    fi
+
+    echo -e "${YELLOW}Layer 2 Clients:${NC}"
+    if [ -d "$PROJECT_ROOT/clients/l2" ]; then
+        for client in "$PROJECT_ROOT/clients/l2"/*; do
+            if [ -d "$client" ]; then
+                echo "  - $(basename "$client")"
+            fi
+        done
+    fi
+
+    echo -e "${YELLOW}Alternative Clients:${NC}"
+    if [ -d "$PROJECT_ROOT/clients/alternative" ]; then
+        for client in "$PROJECT_ROOT/clients/alternative"/*; do
+            if [ -d "$client" ]; then
+                echo "  - $(basename "$client")"
+            fi
+        done
+    fi
+}
+
+# Function to list available networks
+list_networks() {
+    echo -e "${CYAN}Available Networks:${NC}"
+    if [ -d "$PROJECT_ROOT/networks" ]; then
+        for network in "$PROJECT_ROOT/networks"/*; do
+            if [ -d "$network" ]; then
+                echo "  - $(basename "$network")"
+            fi
+        done
+    fi
+}
+
+# Function to show system status
+show_status() {
+    echo -e "${CYAN}System Status:${NC}"
+    echo ""
+
+    # Check services
+    echo -e "${YELLOW}Running Services:${NC}"
+    systemctl list-units --type=service --state=running | grep -E "(geth|erigon|nethermind|besu)" || echo "  No blockchain services running"
+
+    echo ""
+    echo -e "${YELLOW}Network Ports:${NC}"
+    netstat -tlnp 2>/dev/null | grep -E ":(8545|8546|30303|30304)" || echo "  No blockchain ports detected"
+
+    echo ""
+    echo -e "${YELLOW}Configuration:${NC}"
+    if [ -f "$CONFIG_FILE" ]; then
+        echo "  ✅ Config file exists: $CONFIG_FILE"
+    else
+        echo "  ❌ Config file not found: $CONFIG_FILE"
+    fi
+}
+
+# Function to check dependencies
+check_dependencies() {
+    local missing_deps=()
+
+    # Check Python
+    if ! command -v python3 &> /dev/null; then
+        echo -e "${RED}❌ Python 3 is required${NC}"
+        exit 1
+    fi
+
+    # Check Python packages
+    if ! python3 -c "import aiohttp" 2>/dev/null; then
+        missing_deps+=("aiohttp")
+    fi
+
+    if ! python3 -c "import psutil" 2>/dev/null; then
+        missing_deps+=("psutil")
+    fi
+
+    if ! python3 -c "import yaml" 2>/dev/null; then
+        missing_deps+=("pyyaml")
+    fi
+
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        echo -e "${YELLOW}⚠️  Installing missing Python dependencies: ${missing_deps[*]}${NC}"
+        pip3 install "${missing_deps[@]}" || {
+            echo -e "${RED}❌ Failed to install dependencies${NC}"
+            echo -e "${YELLOW}   Please run: pip3 install ${missing_deps[*]}${NC}"
+            exit 1
+        }
+    fi
+}
+
+# Function to run verification
+run_verification() {
+    local script="$SCRIPT_DIR/blockchain_sync_verification_comprehensive.py"
+    if [ ! -f "$script" ]; then
+        echo -e "${RED}❌ Verification script not found: $script${NC}"
+        exit 1
+    fi
+
+    local cmd_args=(
+        "--node-type" "$NODE_TYPE"
+        "--network" "$NETWORK"
+        "--verification-level" "$VERIFICATION_LEVEL"
+        "--alert-threshold" "$ALERT_THRESHOLD"
+        "--output-format" "$OUTPUT_FORMAT"
+        "--duration" "$DURATION"
+        "--config" "$CONFIG_FILE"
+    )
+
+    if [ "$COMPARE_NODES" = true ]; then
+        cmd_args+=("--compare-nodes")
+    fi
+
+    if [ -n "$EXPORT_FILE" ]; then
+        cmd_args+=("--export" "$EXPORT_FILE")
+    fi
+
+    echo -e "${BLUE}Running verification with args: ${cmd_args[*]}${NC}"
+    python3 "$script" "${cmd_args[@]}"
+}
+
+# Function to run quick check
+run_quick_check() {
+    local script="$SCRIPT_DIR/blockchain_sync_quick_check.py"
+    if [ ! -f "$script" ]; then
+        echo -e "${RED}❌ Quick check script not found: $script${NC}"
+        exit 1
+    fi
+
+    python3 "$script" --network "$NETWORK" --output-format "$OUTPUT_FORMAT"
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --node-type)
+            NODE_TYPE="$2"
+            shift 2
+            ;;
+        --network)
+            NETWORK="$2"
+            shift 2
+            ;;
+        --verification-level)
+            VERIFICATION_LEVEL="$2"
+            shift 2
+            ;;
+        --alert-threshold)
+            ALERT_THRESHOLD="$2"
+            shift 2
+            ;;
+        --output-format)
+            OUTPUT_FORMAT="$2"
+            shift 2
+            ;;
+        --duration)
+            DURATION="$2"
+            shift 2
+            ;;
+        --compare-nodes)
+            COMPARE_NODES=true
+            shift
+            ;;
+        --no-compare-nodes)
+            COMPARE_NODES=false
+            shift
+            ;;
+        --export)
+            EXPORT_FILE="$2"
+            shift 2
+            ;;
+        --config)
+            CONFIG_FILE="$2"
+            shift 2
+            ;;
+        --quick-check)
+            QUICK_CHECK=true
+            shift
+            ;;
+        --monitor-integrity)
+            INTEGRITY_MONITOR=true
+            shift
+            ;;
+        --analyze-performance)
+            PERFORMANCE_ANALYSIS=true
+            shift
+            ;;
+        --generate-report)
+            GENERATE_REPORT=true
+            shift
+            ;;
+        --list-clients)
+            list_clients
+            exit 0
+            ;;
+        --list-networks)
+            list_networks
+            exit 0
+            ;;
+        --status)
+            show_status
+            exit 0
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown option: $1${NC}"
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+# Validate inputs
+case $NODE_TYPE in
+    geth|erigon|nethermind|besu|all) ;;
+    *)
+        echo -e "${RED}❌ Invalid node type: $NODE_TYPE${NC}"
+        echo "Valid options: geth, erigon, nethermind, besu, all"
+        exit 1
+        ;;
+esac
+
+# Check dependencies
+check_dependencies
+
+# Run the appropriate command
+if [ "$QUICK_CHECK" = true ]; then
+    display_header
+    run_quick_check
+elif [ "$INTEGRITY_MONITOR" = true ]; then
+    display_header
+    echo -e "${YELLOW}Integrity monitoring not yet implemented${NC}"
+    exit 1
+elif [ "$PERFORMANCE_ANALYSIS" = true ]; then
+    display_header
+    echo -e "${YELLOW}Performance analysis not yet implemented${NC}"
+    exit 1
+elif [ "$GENERATE_REPORT" = true ]; then
+    display_header
+    echo -e "${YELLOW}Report generation not yet implemented${NC}"
+    exit 1
+else
+    display_header
+    run_verification
+fi
+
+exit_code=$?
+
+if [ $exit_code -eq 0 ]; then
+    echo -e "\n${GREEN}✅ Verification completed successfully${NC}"
+else
+    echo -e "\n${YELLOW}⚠️  Verification completed with issues (exit code: $exit_code)${NC}"
+fi
+
+exit $exit_code

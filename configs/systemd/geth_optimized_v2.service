@@ -1,0 +1,123 @@
+[Unit]
+Description=Geth Node v1.16.4 (MEV Optimized - Performance Tuned)
+Documentation=https://geth.ethereum.org/docs/
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=exec
+User=lyftium
+Group=lyftium
+WorkingDirectory=/data/blockchain/nodes/ethereum
+
+# Security: Load environment from secure location
+EnvironmentFile=/data/blockchain/nodes/security/ethereum_secure.env
+
+# Optimized Geth configuration for faster sync
+ExecStart=/usr/bin/geth \
+    --datadir=/data/blockchain/storage/geth-backup \
+    --mainnet \
+    --syncmode=snap \
+    --gcmode=full \
+    --cache=8192 \
+    --maxpeers=150 \
+    --http \
+    --http.addr=127.0.0.1 \
+    --http.port=8549 \
+    --http.api=eth,net,web3,debug,txpool \
+    --http.vhosts=localhost,127.0.1 \
+    --ws \
+    --ws.addr=127.0.0.1 \
+    --ws.port=8550 \
+    --ws.api=eth,net,web3,debug,txpool \
+    --ws.origins=* \
+    --authrpc.addr=127.0.0.1 \
+    --authrpc.port=8554 \
+    --authrpc.vhosts=localhost,127.0.1 \
+    --port=30311 \
+    --discovery.port=30311 \
+    --metrics \
+    --metrics.addr=127.0.0.1 \
+    --metrics.port=6069 \
+    --txlookuplimit=0 \
+    --verbosity=3 \
+    --log.rotate \
+    --log.maxage=7 \
+    --rpc.gascap=50000000 \
+    --rpc.txfeecap=100 \
+    --rpc.allow-unprotected-txs=false \
+    --txpool.accountslots=64 \
+    --txpool.globalslots=16384 \
+    --txpool.accountqueue=128 \
+    --txpool.globalqueue=8192 \
+    --txpool.pricelimit=1000000000 \
+    --txpool.pricebump=10 \
+    --nat=extip:51.159.82.58 \
+    --authrpc.jwtsecret=/data/blockchain/storage/jwt-secret-common.hex \
+    --snapshots=true
+
+# Resource limits (optimized for performance)
+MemoryHigh=8G
+MemoryMax=10G
+CPUQuota=400%
+TasksMax=32768
+LimitNOFILE=1048576
+LimitNPROC=32768
+IOWeight=50
+
+# Restart policy
+Restart=on-failure
+RestartSec=30s
+TimeoutStartSec=300s
+TimeoutStopSec=30s
+
+# CRITICAL SECURITY HARDENING
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHostname=true
+
+# File system access
+ReadWritePaths=/data/blockchain/storage/geth-backup
+ReadWritePaths=/data/blockchain/storage/jwt-secret-common.hex
+ReadWritePaths=/data/blockchain/nodes/security/secrets
+ReadOnlyPaths=/data/blockchain/nodes/security
+
+# Network security
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+PrivateNetwork=false
+IPAccounting=true
+
+# System calls filtering
+SystemCallFilter=@system-service
+SystemCallFilter=~@debug @mount @cpu-emulation @obsolete @privileged @reboot @swap
+SystemCallErrorNumber=EPERM
+
+# Capabilities
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_NET_BIND_SERVICE CAP_DAC_READ CAP_DAC_OVERRIDE CAP_FOWNER CAP_SETFCAP CAP_SETPCAP CAP_MKNOD CAP_CHOWN CAP_FSETID CAP_SETGID CAP_SETPCAP CAP_KILL CAP_SYS_CHROOT
+AmbientCapabilities=CAP_SETUID CAP_SETGID CAP_NET_BIND_SERVICE
+
+# Resource restrictions
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RemoveIPC=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=geth-performance
+
+[Install]
+WantedBy=multi-user.target

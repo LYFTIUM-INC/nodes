@@ -1,0 +1,87 @@
+# RETH Production Configuration - MEV Foundation Optimized
+# Based on Reth community best practices for production MEV infrastructure
+
+[default]
+# Chain configuration
+chain = "mainnet"
+
+# Data directory
+datadir = "/data"
+
+# HTTP RPC Server Configuration
+[http]
+addr = "0.0.0.0"
+port = 8545
+api = ["eth", "net", "web3", "debug", "trace", "txpool", "engine"]
+corsdomain = ["*"]
+host = "0.0.0.0"
+
+# WebSocket RPC Server Configuration
+[ws]
+addr = "0.0.0.0"
+port = 8546
+api = ["eth", "net", "web3", "debug", "trace", "txpool", "engine"]
+origins = ["*"]
+
+# P2P Networking Configuration
+[network]
+port = 30303
+nat = "any"
+discovery = true
+# Maximum number of peers (community best practice: 50-100 for production)
+max_peers = 75
+# Minimum number of peers to maintain connections
+min_peers = 25
+
+# Builder/MEV Configuration (Reth MEV Integration)
+[builder]
+# Enable builder API for MEV-Boost integration
+enabled = true
+# Build blocks every slot
+build_interval = 1
+# Gas limit for built blocks (slightly higher than default for MEV)
+gas_limit = 30000000
+# Maximum number of concurrent build tasks
+max_build_tasks = 3
+# Block building deadline (slots before end of slot)
+deadline = 12
+# Extra data for identification
+extradata = "MEV-Infra-Reth-v1.0.0"
+
+# Engine API Configuration (for Consensus Layer integration)
+[engine]
+port = 8551
+host = "127.0.0.1"
+jwtsecret = "/jwt.hex"
+
+# Logging Configuration
+[logging]
+# Filter logging levels for production
+filter = "info"
+# Log to file for persistence
+file = "/data/logs/reth.log"
+# Console logging
+console = true
+
+# Database Configuration
+[db]
+# Cache size for better performance (community recommended)
+cache_size = 4096
+# Database write ahead log configuration
+write_ahead_log_size = 512
+
+# Metrics Configuration (for monitoring integration)
+[metrics]
+port = 6060
+host = "0.0.0.0"
+enabled = true
+
+# Pruning Configuration (optimized for production)
+[pruning]
+# Prune every N blocks
+block_interval = 5
+# Disable some pruning modes for MEV performance
+# Keep transaction data for longer periods
+transaction_lookup = 1000000
+# Keep receipts for MEV analysis
+receipts = 500000

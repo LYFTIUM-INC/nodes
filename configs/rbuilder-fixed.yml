@@ -1,0 +1,44 @@
+version: '3.8'
+
+networks:
+  mev_foundation_network:
+    external: true
+
+services:
+  # RBuilder - Simplified Node.js service
+  rbuilder:
+    image: node:18-alpine
+    container_name: rbuilder-foundation
+    restart: unless-stopped
+    ports:
+      - "18552:3000"   # RBuilder API
+      - "6065:6065"     # Metrics
+    volumes:
+      - /data/rbuilder:/app
+      - /data/blockchain/nodes/jwt-secret-common.hex:/data/jwt-secret.hex:ro
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+      - RBUILDER_PORT=3000
+      - RBUILDER_METRICS_PORT=6065
+      - PYTHONPATH=/app
+      - RBUILDER_RPC_URL=http://host.docker.internal:8545
+      - RBUILDER_BUILDER_NAME=MEV-Foundation-Builder
+    networks:
+      - mev_foundation_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2.0"
+        reservations:
+          memory: 2G
+          cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

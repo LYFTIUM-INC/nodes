@@ -1,0 +1,23 @@
+/data/blockchain/nodes/logs/*.log {
+    daily
+    missingok
+    rotate 7
+    compress
+    delaycompress
+    notifempty
+    sharedscripts
+    copytruncate
+    maxsize 100M
+}
+
+/tmp/*.log {
+    daily
+    missingok
+    rotate 3
+    compress
+    delaycompress
+    notifempty
+    sharedscripts
+    copytruncate
+    maxsize 50M
+}

@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  ethereum-erigon:
+    image: erigontech/erigon:v2-latest
+    container_name: ethereum-erigon
+    restart: unless-stopped
+    ports:
+      - "8545:8545"     # HTTP RPC
+      - "8546:8546"     # WebSocket RPC  
+      - "30303:30303"   # P2P TCP
+      - "30303:30303/udp" # P2P UDP
+      - "42069:42069"   # Torrent TCP
+      - "42069:42069/udp" # Torrent UDP
+      - "6060:6060"     # Metrics
+    volumes:
+      - /data/blockchain/storage/ethereum:/data
+    command: |
+      erigon
+      --chain=mainnet
+      --datadir=/data
+      --http
+      --http.addr=0.0.0.0
+      --http.port=8545
+      --http.api=eth,net,web3,trace,debug,txpool,erigon
+      --http.vhosts=*
+      --http.corsdomain=*
+      --ws
+      --ws.compression
+      --authrpc.addr=0.0.0.0
+      --authrpc.port=8551
+      --authrpc.vhosts=*
+      --metrics
+      --metrics.addr=0.0.0.0
+      --metrics.port=6060
+      --port=30303
+      --maxpeers=100
+      --nat=any
+      --snapshots=true
+      --torrent.download.rate=100mb
+      --torrent.upload.rate=50mb
+      --prune=hrtc
+      --prune.h.older=90000
+      --prune.r.older=90000
+      --prune.t.older=90000
+      --prune.c.older=90000
+    environment:
+      - ERIGON_CHAIN=mainnet
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: "4.0"
+        reservations:
+          memory: 8G
+          cpus: "2.0"
+    networks:
+      - blockchain_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+networks:
+  blockchain_network:
+    external: true

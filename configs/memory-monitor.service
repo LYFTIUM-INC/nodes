@@ -1,0 +1,16 @@
+[Unit]
+Description=Blockchain Memory Monitor and Alert Service
+After=network.target docker.service
+
+[Service]
+Type=simple
+User=root
+Environment="HOME=/root"
+ExecStart=/data/blockchain/nodes/scripts/memory-monitor-daemon.sh
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

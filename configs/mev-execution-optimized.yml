@@ -1,0 +1,120 @@
+version: '3.8'
+
+networks:
+  mev_foundation_network:
+    external: true
+
+services:
+  # Redis - High-performance for MEV queue processing
+  redis:
+    image: redis:7-alpine
+    container_name: redis-mev-execution
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - /data/blockchain/configs/redis-mev/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis-mev-data:/data
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - mev_foundation_network
+
+  # MEV-Execution - Fixed and optimized
+  mev-execution:
+    image: node:18-alpine
+    container_name: mev-execution-optimized
+    restart: unless-stopped
+    ports:
+      - "9098:9098"
+      - "18552:3000"  # RBuilder API
+    volumes:
+      - /data/blockchain/jwt-secret-common.hex:/data/jwt-secret.hex:ro
+      - /data/blockchain/configs/eligible-builders.json:/configs/eligible-builders.json:ro
+      - /data/blockchain/configs/rbuilder-final.yml:/configs/rbuilder-final.yml
+      - /data/blockchain/nodes/configs:/configs/rbuilder
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - REDIS_HOST=redis-mev-execution
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - QUEUE_TIMEOUT=10
+      - MAX_CONCURRENT_TASKS=100
+      - PYTHONPATH=/opt/mev-lab
+      - PYTHONPATH=/opt/mev-lab/src
+    command: ["sh", "-c", "cd /app && npm start"]
+    depends_on:
+      - redis-mev-execution
+      - grafana-mev-foundation
+      - prometheus-mev-foundation
+    networks:
+      - mev_foundation_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Prometheus - Enhanced MEV monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-mev-optimized
+    restart: unless-stopped
+    ports:
+      - "19091:9090"
+    volumes:
+      - /data/blockchain/configs/monitoring/prometheus-minimal.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-mev-data:/prometheus/data
+    command: >
+      --config.file=/etc/prometheus/prometheus.yml
+      --storage.tsdb.path=/prometheus/data
+      --web.enable-lifecycle
+      --web.enable-admin-api
+    networks:
+      - mev_foundation_network
+    depends_on:
+      - redis-mev-execution
+      - grafana-mev-foundation
+    networks:
+      - mev_foundation_network
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:latest  
+    container_name: grafana-mev-optimized
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    volumes:
+      - /data/blockchain/nodes/configs/grafana:/etc/grafana
+      - /data/blockchain/data/grafana-foundation:/var/lib/grafana
+      - grafana-foundation-data:/var/lib/grafana/plugins
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=mev_foundation_2025
+      - GF_PATHS_CONFIG=/etc/grafana/grafana.ini
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - PYTHONPATH=/opt/mev-lab
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_AUTH_DISABLE_INITIAL_ADMIN_USER=false
+      - GF_AUTH_ANONYMOUS_ACCESS=anonymous
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Anonymous Org
+      - GF_AUTH_ANONYMOUS_ORG_ROLES=Viewer,Editor,Admin,Editor
+      - GF_AUTH_DISABLE_GRAVANA_ALERTS=true
+    networks:
+      - mev_foundation_network
+    depends_on:
+      - prometheus-mev-optimized
+      - redis-mev-execution
+    networks:
+      - mev_foundation_network
+
+volumes:
+  redis-mev-data:
+    driver: local
+  grafana-foundation-data:
+    driver: local
+  prometheus-mev-data:
+    driver: local
