@@ -1,154 +1,229 @@
-# Nodes Foundation Infrastructure
+# LYFTIUM-INC/nodes
 
-## 📋 Overview
+> Production blockchain infrastructure for MEV operations, analytics, and node services.
 
-Production-grade MEV (Maximum Extractable Value) Foundation infrastructure featuring:
-- **Execution Layer**: Reth (Rust Ethereum client)
-- **Consensus Layer**: Lighthouse (PoS consensus client)  
-- **MEV Stack**: MEV-Boost + RBuilder for maximum value extraction
-- **Network**: Isolated Docker network with enterprise security
+[![Status](https://img.shields.io/badge/status-production--ready-green)](https://github.com/LYFTIUM-INC/nodes)
+[![Infrastructure](https://img.shields.io/badge/infrastructure-ethereum-blue)](https://ethereum.org/)
+[![MEV](https://img.shields.io/badge/MEV-boost-purple)](https://github.com/flashbots/mev-boost)
 
-## 🏗️ Architecture
+## Overview
+
+This repository contains the configuration and orchestration for LYFTIUM's blockchain node infrastructure. We operate:
+
+- **Execution Layer**: Reth (primary), Erigon (backup/archive)
+- **Consensus Layer**: Lighthouse beacon nodes
+- **MEV Infrastructure**: MEV-Boost, RBuilder, relay connections
+- **Analytics**: ClickHouse with 22.5B+ rows of blockchain data
+- **Monitoring**: Prometheus, Grafana, custom health checks
+
+## Architecture
 
 ```
-mev_foundation_network (Docker bridge)
-├── reth-ethereum-mev      # RETH Execution Client
-├── lighthouse-mev-foundation  # Lighthouse Consensus
-├── mev-boost-foundation     # MEV Relay System
-├── rbuilder-foundation     # Block Builder Engine
-└── grafana-mev-foundation # Monitoring
+                    ┌─────────────────────────────────────┐
+                    │       LYFTIUM Blockchain Infra       │
+                    └─────────────────────────────────────┘
+                                       │
+        ┌──────────────────────────────┼──────────────────────────────┐
+        │                              │                              │
+        ▼                              ▼                              ▼
+┌──────────────┐              ┌──────────────┐              ┌──────────────┐
+│   Reth       │              │   Erigon     │              │  Lighthouse  │
+│  Port: 8557  │◄────────────►│  Port: 8550  │              │  Port: 5052  │
+│  Exec + API  │    Engine    │  Archive     │              │   Beacon     │
+└──────────────┘     API       └──────────────┘              └──────┬───────┘
+        │                                                   │
+        ▼                                                   ▼
+┌──────────────┐                                  ┌──────────────┐
+│  MEV-Boost   │◄─────────────────────────────────│  Consensus   │
+│  Port: 18550 │          Validator Updates        │    Layer     │
+└──────┬───────┘                                  └──────────────┘
+       │
+       ▼
+┌──────────────┐
+│  RBuilder    │
+│  Port: 18552 │
+└──────────────┘
 ```
 
-## 📊 Service Status
+## Port Mappings
 
-| Service | Status | Port | Health Check |
-|---------|--------|------|-------------|
-| RETH | ✅ Operational | 28545 | `curl -s http://localhost:28545` |
-| Lighthouse | ✅ Operational | 5052 | `curl -s http://localhost:5052/eth/v1/beacon/genesis` |
-| MEV-Boost | ✅ Operational | 28550 | `curl -s http://localhost:28550/eth/v1/builder/status` |
-| RBuilder | ✅ Operational | 18552 | `curl -s http://localhost:18552/api/status` |
+| Service | HTTP | WS | Metrics | Engine API |
+|---------|------|-----|---------|------------|
+| **Reth** | 8557 | 8558 | - | 8553 |
+| **Erigon** | 8550 | 8551 | 6060 | 8552 |
+| **Lighthouse** | 5052 | - | 5054 | - |
+| **MEV-Boost** | 18550 | - | - | - |
+| **RBuilder** | 18552 | - | - | - |
 
-## 🚀 Quick Start
+## Directory Structure
 
-### Health Check
+```
+nodes/
+├── README.md                    # This file
+├── .gitignore                   # Excludes 2TB+ of data
+│
+├── configs/                     # All configurations (consolidated)
+│   ├── jwt/                     # JWT secrets for Engine API
+│   ├── reth/                    # Reth configurations
+│   ├── lighthouse/              # Lighthouse beacon configs
+│   ├── erigon-*.conf           # Erigon configurations
+│   ├── mev-boost/               # MEV-Boost configs
+│   ├── rbuilder-app/            # RBuilder configurations
+│   ├── grafana/                 # Grafana dashboards
+│   ├── monitoring/              # Prometheus configs
+│   ├── systemd/                 # Service definitions
+│   └── *.yml                    # Docker compose files
+│
+├── clients/                     # Client source code
+│   └── alternative/             # Alternative blockchain clients
+│       ├── bsc/                 # BSC client
+│       ├── solana/              # Solana validator
+│       └── avalanche/           # Avalanche node
+│
+├── consensus/                   # Consensus layer clients
+│   └── lighthouse/              # Lighthouse beacon node
+│       ├── start-lighthouse-beacon.sh
+│       └── data/                # Beacon chain data (gitignored)
+│
+├── scripts/                     # Operational scripts
+│   ├── deployment/              # Deployment automation
+│   ├── monitoring/              # Health check scripts
+│   └── maintenance/             # Maintenance utilities
+│
+├── bin/                         # Utility binaries
+│   └── blockchain-sync-verify   # Sync verification tool
+│
+├── docs/                        # Documentation
+│   └── node_management_workflows.md
+│
+├── docs_archive/                # Historical status reports
+│
+└── monitoring/                  # Active monitoring configs
+    └── grafana/                 # Dashboard definitions
+```
+
+## Quick Start
+
+### Prerequisites
+
+- Linux server with 32GB+ RAM, 1TB+ NVMe SSD
+- Docker and Docker Compose
+- Rust toolchain (for Reth)
+- Go 1.21+ (for Lighthouse)
+
+### Clone Repository
+
 ```bash
-# Check all services
+git clone git@github.com:LYFTIUM-INC/nodes.git
+cd nodes
+```
+
+### Service Status Check
+
+```bash
+# Check all running containers
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-# Test API connectivity
+# Check Reth sync status
 curl -s -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
-  http://localhost:28545
+  http://localhost:8557
 
-# Test MEV status
-curl -s http://localhost:28550/eth/v1/builder/status
+# Check Lighthouse sync
+curl -s http://localhost:5052/eth/v1/node/syncing
+
+# Check MEV-Boost status
+curl -s http://localhost:18550/eth/v1/builder/status
 ```
 
-### Monitoring
+## Operations
+
+### Start Services
+
 ```bash
-# Grafana dashboards
-# Access via: http://localhost:3000 (if configured)
+# Start Reth execution client
+docker start reth-ethereum-mev
 
-# System health
-cd /data/blockchain/nodes/scripts/monitoring
-./comprehensive-health-check.sh
+# Start Lighthouse beacon
+./consensus/lighthouse/start-lighthouse-beacon.sh
+
+# Start MEV infrastructure
+docker-compose -f configs/mev-foundation-complete.yml up -d
 ```
 
-## 📁 Directory Structure
+### Stop Services
 
-```
-/data/blockchain/nodes/
-├── configs/              # Centralized configurations
-│   ├── jwt/              # JWT secrets
-│   ├── reth/             # RETH configs
-│   ├── lighthouse/        # Lighthouse configs
-│   ├── mev-boost/         # MEV-Boost configs
-│   └── rbuilder/          # RBuilder configs
-├── scripts/               # Organized scripts
-│   ├── deployment/        # Deployment scripts
-│   ├── monitoring/       # Health check scripts
-│   ├── maintenance/      # Maintenance scripts
-│   ├── testing/          # Test scripts
-│   └── utils/           # Utility scripts
-├── docs/                  # Documentation
-│   ├── 00-README.md      # Main overview
-│   ├── 01-README.md      # Quick start guide
-│   ├── 02-ARCHITECTURE.md # System architecture
-│   └── ORGANIZATION_STRUCTURE.md # Folder structure
-├── environments/             # Environment configs
-│   ├── dev/              # Development
-│   ├── staging/           # Staging
-│   └── prod/              # Production
-├── infrastructure/          # Infrastructure components
-│   ├── docker/           # Docker configurations
-│   ├── systemd/          # Systemd services
-│   └── monitoring/       # Monitoring configs
-├── maintenance/             # Maintenance tools
-│   ├── configs/         # Maintenance configs
-│   ├── dashboards/      # Monitoring dashboards
-│   ├── runbooks/        # Runbooks
-│   └── scripts/        # Maintenance scripts
-├── security/               # Security configurations
-│   ├── secrets/         # Encrypted secrets
-│   ├── api_keys/        # API keys
-│   ├── certificates/     # SSL certificates
-│   └── backups/         # Security backups
-├── services/               # Running services
-├── monitoring/             # Active monitoring
-└── logs/                   # System logs
-```
-
-## 🔧 Operations
-
-### Service Management
 ```bash
-# Start all services
-cd /data/blockchain/nodes/scripts/deployment
-./start-mev-infrastructure.sh
-
-# Stop all services
-cd /data/blockchain/nodes/scripts/maintenance
-./stop-all-services.sh
-
-# Health monitoring
-cd /data/blockchain/nodes/scripts/monitoring
-./comprehensive-health-check.sh
+# Graceful shutdown
+docker stop reth-ethereum-mev lighthouse-mev-foundation
+docker-compose -f configs/mev-foundation-complete.yml down
 ```
 
-### Backup Procedures
+### Health Monitoring
+
 ```bash
-# Create backup
-cd /data/blockchain/nodes/scripts/maintenance
-./create-backup.sh
+# Comprehensive health check
+./scripts/monitoring/comprehensive-health-check.sh
 
-# Restore from backup
-cd /data/blockchain/nodes/scripts/maintenance
-./restore-from-backup.sh
+# Check sync status
+./bin/blockchain-sync-verify
+
+# View logs
+docker logs -f reth-ethereum-mev --tail 100
 ```
 
-## 🔒 Security
+## Current Infrastructure Status
 
-- JWT-based Engine API authentication
-- Docker network isolation
-- Encrypted secret management
-- Regular security audits
-- Access control and monitoring
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Reth** | ⏸️ Stalled | Waiting for Lighthouse sync |
+| **Erigon** | ❌ Inactive | Snapshot format incompatibility |
+| **Lighthouse** | 🔄 Syncing | Slot ~298k / 13.1M (~6-7 days remaining) |
 
-## 📊 Performance Monitoring
+## Troubleshooting
 
-- System resource utilization
-- Network latency monitoring
-- MEV profit tracking
-- Block synchronization status
-- Service health metrics
+### Reth Stuck at Block 0
 
-## 📞 Support
+Reth requires the consensus layer (Lighthouse) to sync first. This is expected behavior post-merge.
 
-- **Documentation**: `/docs/`
-- **Status**: Check with `/scripts/monitoring/comprehensive-health-check.sh`
-- **Logs**: `/logs/`
-- **Alerts**: Grafana dashboards
+**Solution**: Wait for Lighthouse to reach the merge point (~24 hours), then Reth will begin syncing.
 
-**Last Updated**: $(date)
-**Version**: 2.0.0
-**Status**: ✅ Production Ready
+### Erigon Snapshot Issues
+
+Erigon v3.2.0 expects v1.1 snapshot format but has v1.0 format files.
+
+**Solution**: Either re-download snapshots in v1.1 format or downgrade to v3.0.x.
+
+### JWT Authentication Errors
+
+Both execution and consensus clients require matching JWT secrets.
+
+**Solution**: Ensure `/data/blockchain/storage/jwt-common/jwt-secret.hex` exists and is referenced in both configs.
+
+## Security Best Practices
+
+- **Never commit**: Private keys, JWT secrets, API keys, node data
+- **Always use**: Environment variables for secrets
+- **Rotate**: JWT secrets monthly
+- **Monitor**: Unauthorized access attempts
+- **Backup**: Critical configurations off-site
+
+## Contributing
+
+This is a production infrastructure repository. Changes should follow:
+
+1. Create feature branch: `git checkout -b feature/your-change`
+2. Test in non-production environment first
+3. Submit PR with detailed description
+4. Code review required
+5. Conventional commits required: `feat(scope): description`
+
+## License
+
+Proprietary - LYFTIUM INC
+
+---
+
+**Last Updated**: 2025-01-06
+**Repository**: https://github.com/LYFTIUM-INC/nodes
+**Issues**: https://github.com/LYFTIUM-INC/nodes/issues
