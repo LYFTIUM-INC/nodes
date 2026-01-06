@@ -1,0 +1,78 @@
+[Unit]
+Description=MEV-Boost Relay for Ethereum (Production)
+Documentation=https://github.com/flashbots/mev-boost
+After=network-online.target geth.service
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=lyftium
+Group=lyftium
+WorkingDirectory=/data/blockchain/mev-boost
+
+# Pre-start validation
+ExecStartPre=/bin/bash -c 'test -f /data/blockchain/mev-boost/mev-boost || exit 1'
+ExecStartPre=/bin/mkdir -p /var/log/mev-boost
+
+# Main MEV-Boost process
+ExecStart=/data/blockchain/mev-boost/mev-boost \
+    --mainnet \
+    --addr 127.0.0.1:18551 \
+    --relays https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net,https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com,https://0xb0b07cd0abef743db4260b0ed50619cf6ad4d82064cb4fbec9d3ec530f7c5e6793d9f286c4e082c0244ffb9f2658fe88@bloxroute.regulated.blxrbdn.com,https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@titanrelay.xyz,https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net \
+    --request-timeout-getheader 4950 \
+    --request-timeout-getpayload 4000 \
+    --request-timeout-regval 3000 \
+    --request-max-retries 3 \
+    --min-bid 0.01 \
+    --log-level info
+
+# Restart policy
+Restart=on-failure
+RestartSec=15s
+TimeoutStartSec=60s
+TimeoutStopSec=30s
+
+# Resource limits
+MemoryHigh=1G
+MemoryMax=2G
+CPUQuota=100%
+TasksMax=4096
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RemoveIPC=true
+
+# Allowed system calls
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+SystemCallFilter=@system-service @network-io
+SystemCallFilter=~@debug @mount @cpu-emulation @obsolete @privileged @reboot @swap
+SystemCallErrorNumber=EPERM
+
+# File system access
+ReadWritePaths=/data/blockchain/mev-boost /var/log/mev-boost
+ReadOnlyPaths=/data/blockchain/nodes/configs/mev-boost
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mev-boost
+
+# Environment
+Environment="MEV_ENV=production"
+
+[Install]
+WantedBy=multi-user.target

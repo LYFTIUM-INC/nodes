@@ -1,0 +1,113 @@
+[Unit]
+Description=Erigon Ethereum Client (Execution Layer - Backup/Archive)
+Documentation=https://erigon.xyz/docs/
+After=network-online.target
+Wants=network-online.target
+Conflicts=geth.service reth.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=lyftium
+Group=lyftium
+WorkingDirectory=/data/blockchain/storage/erigon
+
+# Pre-start validation
+ExecStartPre=/bin/bash -c 'test -f /data/blockchain/storage/jwt-common/jwt-secret.hex || exit 1'
+ExecStartPre=/bin/mkdir -p /data/blockchain/storage/erigon /var/log/erigon
+ExecStartPre=/bin/bash -c 'rm -f /data/blockchain/storage/erigon/LOCK /data/blockchain/storage/erigon/erigon.lock 2>/dev/null || true'
+
+# Main Erigon process
+# NOTE: Erigon v3.2.0+ requires v1.1 snapshot format
+# If you have v1.0 snapshots, either:
+# 1. Re-download snapshots in v1.1 format, OR
+# 2. Downgrade to Erigon v3.0.x
+ExecStart=/usr/local/bin/erigon \
+    --datadir /data/blockchain/storage/erigon \
+    --chain mainnet \
+    --http \
+    --http.addr 127.0.0.1 \
+    --http.port 8545 \
+    --http.vhosts localhost,127.0.0.1 \
+    --http.api eth,net,web3,debug,erigon,txpool \
+    --ws \
+    --ws.addr 127.0.0.1 \
+    --ws.port 8546 \
+    --ws.origins=* \
+    --authrpc.addr 127.0.0.1 \
+    --authrpc.port 8552 \
+    --authrpc.jwtsecret /data/blockchain/storage/jwt-common/jwt-secret.hex \
+    --authrpc.vhosts=* \
+    --port 30303 \
+    --nat extip:51.159.82.58 \
+    --bootnodes=enode://d860a01f9722d78051619d1e2351aba3f43f943f6f00718d1b9baa4101932a1f5011f16bb2b1bb35db20d6fe28fa0bf09636d26a87d31de9ec6203eeedb1f666@18.138.108.67:30303,enode://22a8232c3abc76a16ae9d6c3b164f98775fe226f0917b0ca871128a74a8e9630b458460865bab457221f1d448dd9791d24c4e5d88786180ac185df813a68d4de@3.209.45.79:30303 \
+    --private.api.addr 127.0.0.1:9091 \
+    --metrics \
+    --metrics.addr 127.0.0.1 \
+    --metrics.port 6062 \
+    --maxpeers 100 \
+    --db.size.limit 2TB \
+    --log.console.verbosity info \
+    --sync.loop.block.limit 5000 \
+    --batchSize 2g \
+    --db.read.concurrency 2048 \
+    --torrent.download.rate 50mb \
+    --torrent.upload.rate 25mb \
+    --torrent.conns.perfile 10 \
+    --torrent.download.slots 6 \
+    --prune remote \
+    --prune.holder 1000000
+
+# Restart policy
+Restart=on-failure
+RestartSec=30s
+TimeoutStartSec=300s
+TimeoutStopSec=120s
+
+# Resource limits (Erigon is memory-intensive)
+MemoryHigh=24G
+MemoryMax=32G
+CPUQuota=400%
+TasksMax=8192
+LimitNOFILE=524288
+LimitNPROC=8192
+IPAccounting=true
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RemoveIPC=true
+
+# Allowed system calls
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+SystemCallFilter=@system-service @network-io @sync
+SystemCallFilter=~@debug @mount @cpu-emulation @obsolete @privileged @reboot @swap @clock
+SystemCallErrorNumber=EPERM
+
+# File system access
+ReadWritePaths=/data/blockchain/storage/erigon /var/log/erigon
+ReadOnlyPaths=/data/blockchain/nodes/configs
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=erigon-execution
+
+# Environment
+Environment="GOGC=50"
+Environment="GOMEMLIMIT=24GiB"
+
+[Install]
+WantedBy=multi-user.target

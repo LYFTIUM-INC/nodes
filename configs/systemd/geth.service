@@ -1,0 +1,133 @@
+[Unit]
+Description=Geth Ethereum Client (Execution Layer)
+Documentation=https://geth.ethereum.org/docs/
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=lyftium
+Group=lyftium
+WorkingDirectory=/data/blockchain/nodes/ethereum
+
+# Security: Load environment from secure location
+EnvironmentFile=-/data/blockchain/nodes/security/ethereum_secure.env
+Environment="MEV_ENV=production"
+Environment="NODE_TYPE=geth"
+
+# Pre-start validation
+ExecStartPre=/bin/bash -c 'test -f /data/blockchain/storage/jwt-secret-common.hex || exit 1'
+ExecStartPre=/bin/mkdir -p /data/blockchain/storage/geth /var/log/geth
+
+# Optimized Geth configuration
+ExecStart=/usr/bin/geth \
+    --datadir /data/blockchain/storage/geth \
+    --mainnet \
+    --syncmode=snap \
+    --gcmode=full \
+    --cache=4096 \
+    --cache.gc=25 \
+    --maxpeers=75 \
+    --maxpendpeers=50 \
+    --http \
+    --http.addr 127.0.0.1 \
+    --http.port 8549 \
+    --http.api eth,net,web3,debug,txpool,admin \
+    --http.vhosts localhost,127.0.0.1 \
+    --ws \
+    --ws.addr 127.0.0.1 \
+    --ws.port 8550 \
+    --ws.api eth,net,web3,debug,txpool \
+    --ws.origins=* \
+    --authrpc.addr 127.0.0.1 \
+    --authrpc.port 8554 \
+    --authrpc.vhosts=localhost,127.0.0.1 \
+    --authrpc.jwtsecret /data/blockchain/storage/jwt-secret-common.hex \
+    --port 30309 \
+    --discovery.port 30309 \
+    --nat extip:51.159.82.58 \
+    --metrics \
+    --metrics.addr 127.0.0.1 \
+    --metrics.port 6061 \
+    --txlookuplimit=0 \
+    --verbosity=3 \
+    --log.rotate \
+    --log.maxage=7 \
+    --rpc.gascap=50000000 \
+    --rpc.txfeecap=100 \
+    --rpc.allow-unprotected-txs=false \
+    --txpool.accountslots=32 \
+    --txpool.globalslots=20000 \
+    --txpool.accountqueue=128 \
+    --txpool.globalqueue=10000 \
+    --txpool.pricelimit=1000000000 \
+    --txpool.pricebump=10 \
+    --state.scheme=path \
+    --cache.preimages \
+    --snapshot=true \
+    --sync.full-limit=64 \
+    --allow-insecure-unlock
+
+# Restart policy
+Restart=on-failure
+RestartSec=30s
+TimeoutStartSec=300s
+TimeoutStopSec=60s
+
+# Resource limits
+MemoryHigh=6G
+MemoryMax=8G
+CPUQuota=300%
+TasksMax=16384
+LimitNOFILE=524288
+LimitNPROC=16384
+IPAccounting=true
+
+# CRITICAL SECURITY HARDENING
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHostname=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RemoveIPC=true
+
+# Network security
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+PrivateNetwork=false
+IPAccounting=true
+
+# System calls filtering
+SystemCallFilter=@system-service
+SystemCallFilter=~@debug @mount @cpu-emulation @obsolete @privileged @reboot @swap
+SystemCallErrorNumber=EPERM
+
+# File system access
+ReadWritePaths=/data/blockchain/storage/geth /var/log/geth
+ReadWritePaths=/data/blockchain/storage/jwt-secret-common.hex
+ReadWritePaths=/data/blockchain/nodes/security/secrets
+ReadOnlyPaths=/data/blockchain/nodes/security
+
+# Capabilities
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_NET_BIND_SERVICE CAP_DAC_READ CAP_DAC_OVERRIDE CAP_FOWNER CAP_SETFCAP CAP_SETPCAP CAP_MKNOD CAP_CHOWN CAP_FSETID
+AmbientCapabilities=CAP_SETUID CAP_SETGID CAP_NET_BIND_SERVICE
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=geth-execution
+
+[Install]
+WantedBy=multi-user.target

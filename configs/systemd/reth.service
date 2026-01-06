@@ -1,0 +1,112 @@
+[Unit]
+Description=Reth Ethereum Client (Execution Layer)
+Documentation=https://paradigmxyz.github.io/reth/
+After=network-online.target
+Wants=network-online.target
+Conflicts=erigon.service geth.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=lyftium
+Group=lyftium
+WorkingDirectory=/data/blockchain/storage/reth
+
+# Pre-start cleanup
+ExecStartPre=/bin/mkdir -p /data/blockchain/storage/reth
+ExecStartPre=/bin/mkdir -p /var/log/reth
+ExecStartPre=/bin/bash -c 'rm -f /data/blockchain/storage/reth/LOCK 2>/dev/null || true'
+
+# Main Reth process - optimized for MEV operations
+ExecStart=/usr/local/bin/reth \
+    --chain mainnet \
+    --datadir /data/blockchain/storage/reth \
+    --http \
+    --http.addr 127.0.0.1 \
+    --http.port 8557 \
+    --http.api eth,net,web3,debug,trace,txpool,admin \
+    --http.vhosts localhost,127.0.0.1 \
+    --http.corsdomain * \
+    --ws \
+    --ws.addr 127.0.0.1 \
+    --ws.port 8558 \
+    --ws.origins * \
+    --auth.jwt-secret /data/blockchain/storage/jwt-common/jwt-secret.hex \
+    --auth.addr 127.0.0.1 \
+    --auth.port 8553 \
+    --engine \
+    --builder \
+    --builder.url http://127.0.0.1:18550 \
+    --metrics \
+    --metrics.addr 127.0.0.1 \
+    --metrics.port 6063 \
+    --port 30313 \
+    --discovery.port 30313 \
+    --maxpeers 100 \
+    --nat extip:51.159.82.58 \
+    --prune \
+    --tx-pool \
+    --log.level info \
+    --log.file-path /var/log/reth/reth.log \
+    --log.max-size 512 \
+    --log.max-num 4
+
+# Restart policy
+Restart=on-failure
+RestartSec=30s
+TimeoutStartSec=180s
+TimeoutStopSec=120s
+
+# Resource limits
+MemoryHigh=12G
+MemoryMax=16G
+CPUQuota=400%
+TasksMax=8192
+LimitNOFILE=1048576
+LimitNPROC=8192
+
+# Security hardening (production-grade)
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHostname=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RemoveIPC=true
+
+# Allowed system calls and address families
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+SystemCallFilter=@system-service
+SystemCallFilter=~@debug @mount @cpu-emulation @obsolete @privileged @reboot @swap
+SystemCallErrorNumber=EPERM
+
+# File system access
+ReadWritePaths=/data/blockchain/storage/reth /var/log/reth
+ReadOnlyPaths=/data/blockchain/nodes/configs/reth
+
+# Capabilities
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_NET_BIND_SERVICE CAP_DAC_READ CAP_DAC_OVERRIDE CAP_FOWNER CAP_SETFCAP CAP_SETPCAP CAP_MKNOD CAP_CHOWN CAP_FSETID
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=reth-execution
+
+# Environment
+Environment="RUST_LOG=info"
+Environment="RUST_BACKTRACE=1"
+
+[Install]
+WantedBy=multi-user.target
