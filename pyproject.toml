@@ -1,0 +1,42 @@
+[tool.mypy]
+# Strict type checking configuration
+
+# Enable strict mode
+strict = true
+# Warn about any missing type hints
+warn_return_any = true
+warn_unused_ignores = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unreachable = true
+
+# Error reporting
+show_error_context = true
+show_column_numbers = true
+show_error_codes = true
+pretty = true
+
+# Platform-specific
+python_version = 3.13
+platform = linux
+
+# Exclude directories that don't need type checking
+exclude = [
+    "mev-geth/",           # Go code
+    "clients/",            # External clients
+    "ethereum/",           # External Ethereum clients
+    "consensus/lighthouse/data/",
+    ".*\\.egg-info.*",
+    "build/",
+    "dist/",
+    "venv/",
+    ".venv/",
+    "virtualenvs/",
+]
+
+# Ignore specific missing imports
+ignore_missing_imports = true
+
+# Warn about unused configs
+warn_unused_configs = true

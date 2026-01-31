@@ -1,0 +1,79 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+
+repos:
+  # Python linting and formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        name: Ruff Linter
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+        name: Ruff Formatter
+
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        name: Mypy Type Checker
+        additional_dependencies: [types-all]
+        args: [--strict, --ignore-missing-imports]
+        exclude: ^(mev-geth/|clients/|ethereum/)
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck
+    rev: v0.10.0.3
+    hooks:
+      - id: shellcheck
+        name: Shell Script Linter
+        args: [--severity=warning]
+
+  # Go linting (for mev-geth/)
+  - repo: https://github.com/pre-commit/mirrors-golangci-lint
+    rev: v1.60.1
+    hooks:
+      - id: golangci-lint
+        name: Go Linter
+        args: [--fast, --timeout=5m]
+        pass_filenames: false
+        files: \.go$
+
+  # General security checks
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect Secrets
+        args: [--baseline=.secrets.baseline]
+        exclude: ^(mev-geth/|clients/|\.git/)
+
+  # Check for large files
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+        name: Check for Large Files
+        args: [--maxkb=1000]
+      - id: check-yaml
+        name: Check YAML Files
+      - id: check-json
+        name: Check JSON Files
+      - id: check-toml
+        name: Check TOML Files
+      - id: check-merge-conflict
+        name: Check for Merge Conflicts
+      - id: end-of-file-fixer
+        name: Fix End of Files
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
+        args: [--markdown-linebreak-ext=md]
+
+  # TODO/FIXME tracking
+  - repo: local
+    hooks:
+      - id: todo-checker
+        name: TODO/FIXME Checker
+        entry: bash scripts/utils/todo-checker.sh
+        language: system

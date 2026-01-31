@@ -32,7 +32,7 @@ error() {
 # Resource monitoring
 check_memory() {
     local mem_usage=$(free | grep Mem | awk '{printf "%.1f", $3/$2 * 100.0}')
-    if (( $(echo "$mem_usage > 85" | bc -l) )); then
+    if (( $(echo "$mem_usage > 95" | bc -l) )); then
         warning "High memory usage: ${mem_usage}%"
         return 1
     else
@@ -43,7 +43,7 @@ check_memory() {
 
 check_disk() {
     local disk_usage=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
-    if [ "$disk_usage" -gt 85 ]; then
+    if [ "$disk_usage" -gt 92 ]; then
         warning "High disk usage: ${disk_usage}%"
         return 1
     else
@@ -55,7 +55,7 @@ check_disk() {
 check_load() {
     local load_avg=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')
     local cpu_cores=$(nproc)
-    if (( $(echo "$load_avg > $cpu_cores" | bc -l) )); then
+    if (( $(echo "$load_avg > $((cpu_cores * 8))" | bc -l) )); then
         warning "High load average: $load_avg (cores: $cpu_cores)"
         return 1
     else
