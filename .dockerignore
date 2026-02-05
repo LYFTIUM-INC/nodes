@@ -1,0 +1,93 @@
+# Docker ignore file for blockchain infrastructure
+# CI/CD Best Practices
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Logs
+logs/
+*.log
+
+# Node modules and dependencies
+node_modules/
+.npm
+.yarn
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.env
+.venv
+venv/
+
+# Go
+vendor/
+
+# Rust
+target/
+Cargo.lock
+
+# Build artifacts
+build/
+dist/
+*.tar.gz
+*.zip
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Test files
+*_test.go
+test/
+tests/
+*.test
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Blockchain data (should be mounted as volumes)
+storage/
+data/
+.ethereum/
+.avalanche/
+.solana/
+
+# Configuration secrets (should be mounted)
+*.key
+*.pem
+keystore/
+secrets/
+
+# Monitoring data
+grafana_data/
+prometheus_data/
