@@ -255,3 +255,61 @@ dependency-check-report.html
 .yarn-integrity
 .eslintcache
 .mocharc.json
+
+# ------------------------------------------------------------------------------
+# AI TOOLING & SESSION HISTORY
+# ------------------------------------------------------------------------------
+.specstory/
+.claude/
+.playwright-mcp/
+.gitworkflow.md
+
+# ------------------------------------------------------------------------------
+# BACKUP DIRECTORIES
+# ------------------------------------------------------------------------------
+scripts_original_backup/
+security/backup*/
+backups/*.backup*
+*.backup
+*.backup.*
+
+# ------------------------------------------------------------------------------
+# ARCHIVE CLEANUP ARTIFACTS
+# ------------------------------------------------------------------------------
+archive/cleanup-*/
+archive/avalanchego-*/
+archive/*.bin
+archive/*.exe
+
+# ------------------------------------------------------------------------------
+# SECURITY SENSITIVE FILES
+# ------------------------------------------------------------------------------
+security/certificates/
+security/certs/
+security/db_passwords/
+security/jwt_secrets/
+security/backups/
+security/*.json
+security/*.py
+
+# ------------------------------------------------------------------------------
+# INFRASTRUCTURE REPORTS (generated)
+# ------------------------------------------------------------------------------
+status/*.md
+reports/*.md
+!reports/.gitkeep
+!status/.gitkeep
+
+# ------------------------------------------------------------------------------
+# SYSTEMD BACKUPS
+# ------------------------------------------------------------------------------
+systemd/*.backup
+systemd/*.bak
+
+# ------------------------------------------------------------------------------
+# TEST TEMP FILES
+# ------------------------------------------------------------------------------
+tests/*.pyc
+tests/__pycache__/
+tools/debugging/*.cmi
+tools/debugging/*.cmo
