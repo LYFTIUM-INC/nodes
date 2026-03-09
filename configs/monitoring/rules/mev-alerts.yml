@@ -1,9 +1,55 @@
 groups:
+  # Node resource pressure (swap/memory) - node_exporter metrics
+  # Standard names: node_memory_SwapTotal_bytes, node_memory_SwapFree_bytes, node_memory_MemAvailable_bytes
+  - name: Node Resource Alerts
+    rules:
+      - alert: HighSwapUsage
+        expr: |
+          (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes)
+            > (node_memory_SwapTotal_bytes * 0.5)
+          and node_memory_SwapTotal_bytes > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Swap usage above 50%"
+          description: "Swap usage has exceeded 50% for 10 minutes. Memory pressure may impact node sync and MEV performance."
+
+      - alert: LowAvailableMemory
+        expr: node_memory_MemAvailable_bytes < 2e9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Available memory below 2GB"
+          description: "Available memory has been below 2GB for 10 minutes. Risk of OOM and sync degradation."
+
+  # P1 Critical: Restart loop and EL-CL disconnect (per BLOCKCHAIN_NODE_MANAGEMENT_BEST_PRACTICES_MEV_2026)
+  - name: MEV Node Critical Alerts
+    rules:
+      - alert: ServiceRestartLoop
+        expr: systemd_service_starts_5m > 3
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service }} in restart loop"
+          description: "{{ $labels.service }} has started more than 3 times in 5 minutes. Check journalctl -u {{ $labels.service }}.service -n 50"
+
+      - alert: ErigonConsensusLayerDisconnected
+        expr: erigon_cl_requests_absent > 0
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Erigon not receiving consensus layer requests"
+          description: "Erigon has logged 'no CL requests to engine-api' in the last 30 minutes. Lighthouse may be down or disconnected. MEV block production will fail."
+
   - name: MEV Foundation Infrastructure Alerts
     rules:
       # MEV-Boost alerts
       - alert: MEVBoostDown
-        expr: up{job="mev-boost-foundation"} == 0
+        expr: max(up{job=~"mev-boost.*"}) == 0
         for: 1m
         labels:
           severity: critical
@@ -19,6 +65,19 @@ groups:
         annotations:
           summary: "MEV-Boost high latency"
           description: "MEV-Boost request latency is above 500ms"
+
+      # Optional: p99 latency > 2s (requires mev_boost_request_duration_seconds histogram, --metrics enabled)
+      - alert: MEVBoostHighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, relay) (rate(mev_boost_request_duration_seconds_bucket{job=~"mev-boost.*"}[5m]))
+          ) > 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MEV-Boost p99 latency > 2s"
+          description: "MEV-Boost request p99 latency exceeds 2 seconds for {{ $labels.relay }}"
 
       # RBuilder alerts
       - alert: RBuilderDown

@@ -5,15 +5,15 @@
 [![Status](https://img.shields.io/badge/status-operational-green)](https://github.com/LYFTIUM-INC/nodes)
 [![Infrastructure](https://img.shields.io/badge/infrastructure-ethereum-blue)](https://ethereum.org/)
 [![MEV](https://img.shields.io/badge/MEV-boost-purple)](https://github.com/flashbots/mev-boost)
-[![Last Updated](https://img.shields.io/badge/last%20updated-2026--01--31-blue)]()
+[![Last Updated](https://img.shields.io/badge/last%20updated-2026--03--09-blue)]()
 
 ## 🎯 Overview
 
 This repository contains LYFTIUM's **professional MEV (Maximal Extractable Value) infrastructure** for Ethereum mainnet operations. Our platform combines:
 
-- **Execution Layer Clients**: Reth (primary), Erigon (archive/analytics)
-- **Consensus Layer**: Lighthouse beacon nodes with slash protection
-- **MEV Pipeline**: MEV-Boost, RBuilder, private mempool, arbitrage engines
+- **Execution Layer**: Erigon (PRIMARY for MEV – HTTP 8545, Engine API 8552)
+- **Consensus Layer**: Lighthouse beacon nodes (port 5052) with slash protection
+- **MEV Pipeline**: MEV-Boost (18551), RBuilder (18552), private mempool, arbitrage engines
 - **Real-Time Analytics**: ClickHouse with 22.5B+ blockchain data rows
 - **Enterprise Monitoring**: Prometheus, Grafana, AlertManager, PagerDuty integration
 - **Security**: JWT authentication, network segmentation, RBAC
@@ -31,33 +31,30 @@ This repository contains LYFTIUM's **professional MEV (Maximal Extractable Value
         │                              │                              │
         ▼                              ▼                              ▼
 ┌──────────────┐              ┌──────────────┐              ┌──────────────┐
-│   Reth       │              │   Erigon     │              │  Lighthouse  │
-│  Port: 8557  │◄────────────►│  Port: 8550  │              │  Port: 5052  │
-│  Exec + API  │    Engine    │  Archive     │              │   Beacon     │
-└──────────────┘     API       └──────────────┘              └──────┬───────┘
-        │                                                   │
-        ▼                                                   ▼
-┌──────────────┐                                  ┌──────────────┐
-│  MEV-Boost   │◄─────────────────────────────────│  Consensus   │
-│  Port: 18550 │          Validator Updates        │    Layer     │
-└──────┬───────┘                                  └──────────────┘
-       │
-       ▼
-┌──────────────┐
-│  RBuilder    │
-│  Port: 18552 │
-└──────────────┘
+│   Erigon     │              │  Lighthouse  │              │  MEV-Boost   │
+│   PRIMARY    │◄────────────►│  Port: 5052  │◄────────────►│  Port: 18551 │
+│ HTTP: 8545   │    Engine    │   Beacon     │   Builder    │   Relay      │
+│ Engine: 8552 │     API      │  Consensus   │   API       │   API        │
+└──────┬───────┘              └──────────────┘              └──────┬───────┘
+       │                                                        │
+       │                                                        ▼
+       │                                               ┌──────────────┐
+       │                                               │  RBuilder    │
+       │                                               │  Port: 18552 │
+       └─────────────── RPC queries ───────────────────┤  (Builder)   │
+                                                       └──────────────┘
 ```
 
 ## Port Mappings
 
-| Service | HTTP | WS | Metrics | Engine API |
-|---------|------|-----|---------|------------|
-| **Reth** | 8557 | 8558 | - | 8553 |
-| **Erigon** | 8550 | 8551 | 6060 | 8552 |
-| **Lighthouse** | 5052 | - | 5054 | - |
-| **MEV-Boost** | 18550 | - | - | - |
-| **RBuilder** | 18552 | - | - | - |
+| Service | HTTP/RPC | WS | Engine API | Role |
+|---------|----------|-----|------------|------|
+| **Erigon** | 8545 | 8546 | 8552 | **PRIMARY** execution client for MEV |
+| **Lighthouse** | 5052 | - | - | Consensus layer |
+| **MEV-Boost** | 18551 | - | - | Builder relay (proposer-critical) |
+| **RBuilder** | 18552 | - | - | Custom builder (optional) |
+
+> **Note**: Reth (8557) and Geth (8549) are not part of the primary MEV stack. Erigon is the production execution client.
 
 ## Directory Structure
 
@@ -168,16 +165,16 @@ docker logs -f reth-ethereum-mev
 # Check all running containers
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-# Check Reth sync status
+# Check Erigon sync status
 curl -s -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
-  http://localhost:8557
+  http://localhost:8545
 
 # Check Lighthouse sync
 curl -s http://localhost:5052/eth/v1/node/syncing
 
 # Check MEV-Boost status
-curl -s http://localhost:18550/eth/v1/builder/status
+curl -s http://localhost:18551/eth/v1/builder/status
 ```
 
 ## Operations
@@ -185,22 +182,22 @@ curl -s http://localhost:18550/eth/v1/builder/status
 ### Start Services
 
 ```bash
-# Start Reth execution client
-docker start reth-ethereum-mev
+# Start Erigon execution client (primary)
+sudo systemctl start erigon.service
 
 # Start Lighthouse beacon
 ./consensus/lighthouse/start-lighthouse-beacon.sh
 
-# Start MEV infrastructure
-docker-compose -f configs/mev-foundation-complete.yml up -d
+# Start MEV-Boost
+sudo systemctl start mev-boost.service
+# Or via docker-compose: docker-compose -f configs/mev-foundation-complete.yml up -d
 ```
 
 ### Stop Services
 
 ```bash
 # Graceful shutdown
-docker stop reth-ethereum-mev lighthouse-mev-foundation
-docker-compose -f configs/mev-foundation-complete.yml down
+sudo systemctl stop mev-boost.service lighthouse-beacon.service erigon.service
 ```
 
 ### Health Monitoring
@@ -213,7 +210,7 @@ docker-compose -f configs/mev-foundation-complete.yml down
 ./bin/blockchain-sync-verify
 
 # View logs
-docker logs -f reth-ethereum-mev --tail 100
+journalctl -u erigon.service -f --tail 100
 ```
 
 ## 📊 Current Infrastructure Status
@@ -222,8 +219,7 @@ docker logs -f reth-ethereum-mev --tail 100
 
 | Component | Status | Health | Notes |
 |-----------|--------|--------|-------|
-| **Reth** | 🟢 Syncing | 93% healthy | Slot ~24.3M / Mainnet |
-| **Erigon** | 🟢 Syncing | Optimal | 6,803 / 18.9M blocks (Snap Sync) |
+| **Erigon** | 🟢 Syncing | Optimal | PRIMARY – 6,803 / 18.9M blocks (Snap Sync) |
 | **Lighthouse** | 🟢 Syncing | Stable | Beacon chain sync in progress |
 | **MEV-Boost** | 🟢 Active | Operational | Connected to 5 relays |
 | **RBuilder** | 🟢 Active | Profitable | Generating blocks |
@@ -237,15 +233,15 @@ docker logs -f reth-ethereum-mev --tail 100
 - ✅ **Security Enhancement**: Added .gitignore, .env templates
 - ✅ **Docker Consolidation**: Reduced docker-compose files from 24 to 3
 - 🔄 **Lighthouse Sync**: ~6-7 days remaining to merge point
-- 🔄 **Erigon Snap Sync**: ~45 hours to completion
+- 🔄 **Erigon Snap Sync**: ~45 hours to completion (PRIMARY execution client)
 
 ## Troubleshooting
 
-### Reth Stuck at Block 0
+### Erigon / Execution Layer Stuck at Block 0
 
-Reth requires the consensus layer (Lighthouse) to sync first. This is expected behavior post-merge.
+Execution clients require the consensus layer (Lighthouse) to sync first. This is expected behavior post-merge.
 
-**Solution**: Wait for Lighthouse to reach the merge point (~24 hours), then Reth will begin syncing.
+**Solution**: Wait for Lighthouse to reach the merge point (~24 hours), then Erigon will begin syncing.
 
 ### Erigon Snapshot Issues
 

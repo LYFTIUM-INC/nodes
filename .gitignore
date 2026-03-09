@@ -313,3 +313,32 @@ tests/*.pyc
 tests/__pycache__/
 tools/debugging/*.cmi
 tools/debugging/*.cmo
+
+# ------------------------------------------------------------------------------
+# EXTERNAL BLOCKCHAIN CLIENT SOURCES (use submodules instead)
+# ------------------------------------------------------------------------------
+clients/alternative/avalanche/source/
+clients/alternative/bsc/source/
+clients/alternative/solana/source/
+clients/l2/*/source/
+clients/ethereum/*/source/
+
+# ------------------------------------------------------------------------------
+# AGENT & AI TOOLING
+# ------------------------------------------------------------------------------
+.agent-trace/
+
+# ------------------------------------------------------------------------------
+# AI-GENERATED REPORTS (not code) - systemd configs in configs/systemd/ ARE tracked
+# ------------------------------------------------------------------------------
+*.service
+*.timer
+!configs/systemd/*.service
+!configs/systemd/*.timer
+!.github/
+audits/*.md
+
+# ------------------------------------------------------------------------------
+# PYTHON SCRIPTS AT ROOT (should be in scripts/)
+# ------------------------------------------------------------------------------
+blockchain_node_monitor.py

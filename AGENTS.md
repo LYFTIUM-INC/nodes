@@ -15,9 +15,9 @@ This document provides essential information for autonomous agents (AI coding as
 **LYFTIUM MEV Lab** - Production blockchain infrastructure for MEV (Maximal Extractable Value) operations, Ethereum node management, and real-time analytics.
 
 **Key Components:**
-- Execution Layer Clients: Reth (primary), Erigon (archive/analytics)
-- Consensus Layer: Lighthouse beacon nodes
-- MEV Infrastructure: MEV-Boost, RBuilder, private mempool, arbitrage engines
+- Execution Layer: Erigon (PRIMARY for MEV – HTTP 8545, Engine API 8552)
+- Consensus Layer: Lighthouse beacon nodes (port 5052)
+- MEV Infrastructure: MEV-Boost (18551), RBuilder (18552), private mempool, arbitrage engines
 - Analytics: ClickHouse with 22.5B+ blockchain data rows
 - Monitoring: Prometheus, Grafana, AlertManager, PagerDuty integration
 
@@ -252,7 +252,7 @@ journalctl -u erigon.service -n 50 --no-pager
 
 ### Known Issues
 - Erigon requires v1.1 snapshot format (currently has v1.0)
-- Reth waits for Lighthouse sync before execution sync begins
+- Execution clients wait for Lighthouse sync before execution sync begins (post-merge)
 - JWT authentication required for Engine API between execution and consensus layers
 
 ---

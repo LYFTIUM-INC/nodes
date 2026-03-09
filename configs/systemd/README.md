@@ -4,13 +4,13 @@ This directory contains production-ready systemd service templates for blockchai
 
 ## Services
 
-| Service | Description | Port | Status |
+| Service | Description | Port | Role |
 |----------|-------------|------|--------|
-| `geth.service` | Geth Execution Client | HTTP: 8549, WS: 8550, Engine: 8554 | ✅ Production |
-| `reth.service` | Reth Execution Client | HTTP: 8557, WS: 8558, Engine: 8553 | ✅ Template |
-| `erigon.service` | Erigon Execution Client | HTTP: 8545, WS: 8546, Engine: 8552 | ⚠️ Backup |
-| `lighthouse.service` | Lighthouse Consensus | HTTP: 5052, P2P: 9003 | ✅ Production |
-| `mev-boost.service` | MEV-Boost Relay | HTTP: 18551 | ✅ Production |
+| `erigon.service` | Erigon Execution Client | HTTP: 8545, WS: 8546, Engine: 8552 | **PRIMARY** for MEV |
+| `lighthouse-beacon.service` | Lighthouse Consensus | HTTP: 5052, P2P: 9003 | Consensus layer |
+| `mev-boost.service` | MEV-Boost Relay | HTTP: 18551 | Proposer-critical |
+| `geth.service` | Geth Execution Client | HTTP: 8549, WS: 8550, Engine: 8554 | Alternative/backup |
+| `reth.service` | Reth Execution Client | HTTP: 8557, WS: 8558, Engine: 8553 | Alternative/template |
 
 ## Installation
 
@@ -32,6 +32,18 @@ sudo systemctl start [service].service
 # Check status
 sudo systemctl status [service].service
 ```
+
+### Lighthouse Beacon Drop-in (DB Integrity Check)
+
+If using lighthouse-beacon.service, install the pre-restart DB integrity check drop-in:
+
+```bash
+sudo mkdir -p /etc/systemd/system/lighthouse-beacon.service.d
+sudo cp configs/systemd/lighthouse-beacon.service.d/db-check.conf /etc/systemd/system/lighthouse-beacon.service.d/
+sudo systemctl daemon-reload
+```
+
+This runs `lighthouse-db-integrity-check.sh` before each start to prevent restart loops from corrupted LevelDB.
 
 ## JWT Secret Management
 
@@ -80,24 +92,24 @@ ls -la /data/blockchain/storage/jwt-secret-common.hex
 
 ### Check port bindings
 ```bash
-ss -tlnp | grep -E "8549|8554|5052"
+ss -tlnp | grep -E "8545|8552|5052|18551"
 ```
 
 ### Restart all services
 ```bash
-sudo systemctl restart lighthouse.service geth.service mev-boost.service
+sudo systemctl restart lighthouse-beacon.service erigon.service mev-boost.service
 ```
 
 ## Service Dependencies
 
 ```
-Lighthouse (Consensus)
+Lighthouse (Consensus) - port 5052
     │
-    ├─> Geth (Execution Layer) - Primary
-    │     └─> Engine API: 127.0.0.1:8554
+    ├─> Erigon (Execution Layer) - PRIMARY
+    │     └─> Engine API: 127.0.0.1:8552
     │
     └─> JWT Secret: /data/blockchain/storage/jwt-common/jwt-secret.hex
 
-MEV-Boost
-    └─> Geth (for block submission)
+MEV-Boost - port 18551
+    └─> Erigon (for block submission)
 ```

@@ -1,0 +1,68 @@
+# MEV-Boost Timing Games Configuration
+# Per MEV_OPTIMIZATION_PROPOSALS_2026.md and docs/timing-games.md
+#
+# Used by mev-boost v1.12+ via -config. Relays defined here (v1.12 rejects CLI+config duplicates).
+#
+# Expected impact: +2-5% revenue from capturing late, higher-value bids before proposal deadline.
+# Flashbots timing games: delay first request + send multiple follow-ups to capture late bids.
+#
+# Proposed structure (verify against mev-boost config.example.yaml / timing-games.md):
+# - enable_timing_games: delay first getHeader request
+# - target_first_request_ms: when to send first request (default ~200ms into slot)
+# - frequency_get_header_ms: interval between follow-up getHeader requests (default ~100ms)
+#
+# Reference: https://github.com/flashbots/mev-boost/blob/develop/docs/timing-games.md
+
+# Timeouts (match systemd values)
+timeout_get_header_ms: 4950
+late_in_slot_time_ms: 2000
+
+# Timing games - capture late bids
+# When enabled: first getHeader delayed; multiple follow-ups sent
+enable_timing_games: true
+target_first_request_ms: 200
+frequency_get_header_ms: 100
+
+# Per-relay overrides (optional - for B2 proposal)
+# Top relays by market share can have relay-specific tuning
+relays:
+  - url: "https://0xa1559ace749633b997cb3fdacffb890aeebdb0f5a3b6aaa7eeeaf1a38af0a8fe88b9e4b1f61f236d2e64d95733327a62@relay.ultrasound.money"
+    enable_timing_games: true
+    target_first_request_ms: 200
+    frequency_get_header_ms: 100
+  - url: "https://0x8c4ed5e24fe5c6ae21018437bde147693f68cda427cd1122cf20819c30eda7ed74f72dece09bb313f2a1855595ab677d@titanrelay.xyz"
+    enable_timing_games: true
+    target_first_request_ms: 200
+    frequency_get_header_ms: 100
+  - url: "https://0x8b5d2e73e2a3a55c6c87b8b6eb92e0149a125c852751db1422fa951e42a09b82c142c3ea98d0d9930b056a3bc9896b8f@bloxroute.max-profit.blxrbdn.com"
+    enable_timing_games: true
+    target_first_request_ms: 200
+    frequency_get_header_ms: 100
+  - url: "https://0xb0b07cd0abef743db4260b0ed50619cf6ad4d82064cb4fbec9d3ec530f7c5e6793d9f286c4e082c0244ffb9f2658fe88@bloxroute.regulated.blxrbdn.com"
+    enable_timing_games: true
+    target_first_request_ms: 200
+    frequency_get_header_ms: 100
+  - url: "https://0xa15b52576bcbf1072f4a011c0f99f9fb6c66f3e1ff321f11f461d15e31b1cb359caa092c71bbded0bae5b5ea401aab7e@aestus.live"
+    enable_timing_games: true
+    target_first_request_ms: 200
+    frequency_get_header_ms: 100
+  - url: "https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net"
+    enable_timing_games: true
+    target_first_request_ms: 200
+    frequency_get_header_ms: 100
+  - url: "https://0xa7ab7a996c8584251c8f925da3170bdfd6ebc75d50f5ddc4050a6fdc77f2a3b5fce2cc750d0865e05d7228af97d69561@agnostic-relay.net"
+    enable_timing_games: true
+    target_first_request_ms: 200
+    frequency_get_header_ms: 100
+  - url: "https://0x88ef3061f598101ca713d556cf757763d9be93d33c3092d3ab6334a36855b6b4a4020528dd533a62d25ea6648251e62e@relay.ethgas.com"
+    enable_timing_games: true
+    target_first_request_ms: 200
+    frequency_get_header_ms: 100
+  - url: "https://0xb3ee7afcf27f1f1259ac1787876318c6584ee353097a50ed84f51a1f21a323b3736f271a895c7ce918c038e4265918be@relay.edennetwork.io"
+    enable_timing_games: true
+    target_first_request_ms: 200
+    frequency_get_header_ms: 100
+  - url: "https://0x98650451ba02064f7b000f5768cf0cf4d4e492317d82871bdc87ef841a0743f69f0f1eea11168503240ac35d101c9135@mainnet-relay.securerpc.com"
+    enable_timing_games: true
+    target_first_request_ms: 200
+    frequency_get_header_ms: 100

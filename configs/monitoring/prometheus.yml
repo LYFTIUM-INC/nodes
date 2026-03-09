@@ -6,7 +6,26 @@ rule_files:
   - "/etc/prometheus/rules/*.yml"
 
 scrape_configs:
-  # MEV-Boost metrics
+  # MEV-Boost metrics (systemd production)
+  # Per MEV-Boost docs: -metrics enables Prometheus metrics; -metrics-addr defaults to localhost:18551.
+  # When API uses --addr 127.0.0.1:18551, metrics may use separate port via -metrics-addr 127.0.0.1:18651.
+  # Both jobs below cover API+metrics-on-same-port (18551) and separate-metrics-port (18651) deployments.
+  - job_name: 'mev-boost'
+    static_configs:
+      - targets: ['127.0.0.1:18551']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    scheme: http
+
+  # MEV-Boost Prometheus metrics (port 18651) - active when mev-boost v1.12+ runs with --metrics --metrics-addr 127.0.0.1:18651
+  - job_name: 'mev-boost-metrics'
+    static_configs:
+      - targets: ['127.0.0.1:18651']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    scheme: http
+    honor_labels: true
+
   - job_name: 'mev-boost-foundation'
     static_configs:
       - targets: ['mev-boost-foundation:18551']

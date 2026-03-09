@@ -110,7 +110,7 @@ backup_configs() {
     local config_backup="$BACKUP_DIR/configs-${timestamp}.tar.gz"
     
     if [ -d "$CONFIG_DIR" ]; then
-        tar -czf "$config_backup" -C "$(dirname "$CONFIG_DIR") "$(basename "$CONFIG_DIR")"
+        tar -czf "$config_backup" -C "$(dirname "$CONFIG_DIR")" "$(basename "$CONFIG_DIR")"
         log "${GREEN}✅ Backed up configurations to: $(basename "$config_backup")${NC}"
     fi
 }
