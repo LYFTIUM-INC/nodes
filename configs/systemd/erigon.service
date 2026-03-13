@@ -30,7 +30,9 @@ ExecStart=/usr/local/bin/erigon \
     --http.addr 127.0.0.1 \
     --http.port 8545 \
     --http.vhosts localhost,127.0.0.1 \
-    --http.api eth,net,web3,debug,erigon,txpool \
+    --http.api eth,net,web3,debug,erigon,txpool,engine \
+    --http.compression=true \
+    --rpc.batch.concurrency=16 \
     --ws \
     --ws.addr 127.0.0.1 \
     --ws.port 8546 \
@@ -46,18 +48,18 @@ ExecStart=/usr/local/bin/erigon \
     --metrics \
     --metrics.addr 127.0.0.1 \
     --metrics.port 6062 \
-    --maxpeers 100 \
+    --maxpeers 150 \
     --db.size.limit 2TB \
     --log.console.verbosity info \
-    --sync.loop.block.limit 5000 \
-    --batchSize 2g \
+    --sync.loop.block.limit 256 \
+    --batchSize 4M \
     --db.read.concurrency 2048 \
-    --torrent.download.rate 50mb \
-    --torrent.upload.rate 25mb \
+    --torrent.download.rate 1024mb \
+    --torrent.upload.rate 128mb \
     --torrent.conns.perfile 10 \
     --torrent.download.slots 6 \
-    --prune remote \
-    --prune.holder 1000000
+    --prune.mode full \
+    --downloader.verify
 
 # Restart policy
 Restart=on-failure
