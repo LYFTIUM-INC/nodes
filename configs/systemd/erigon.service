@@ -52,7 +52,7 @@ ExecStart=/usr/local/bin/erigon \
     --db.size.limit 2TB \
     --log.console.verbosity info \
     --sync.loop.block.limit 256 \
-    --batchSize 4M \
+    --batchSize 2.5M \
     --db.read.concurrency 2048 \
     --torrent.download.rate 1024mb \
     --torrent.upload.rate 128mb \
