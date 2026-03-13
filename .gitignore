@@ -337,6 +337,11 @@ clients/ethereum/**/source/
 clients/ethereum/**/erigon_v*/
 clients/ethereum/*/*backup*
 clients/ethereum/*/*bak*
+clients/alternative/*/config/*.toml
+clients/alternative/*/config/*.json
+clients/ethereum/*/config/*.toml
+clients/ethereum/*/config/Dockerfile
+clients/*/start-*.sh.bak
 
 # ------------------------------------------------------------------------------
 # ANSIBLE INFRASTRUCTURE AUTOMATION
@@ -442,6 +447,9 @@ consensus/*/beacon/network/
 consensus/*/beacon/frozen
 consensus/*/validator/
 consensus/*/slashing_protection.sqlite3
+consensus/*corrupted*
+consensus/*data.corrupted*
+consensus/*/geth/
 clients/l2/optimism/*_db/
 clients/l2/optimism/*/bin/
 
@@ -478,7 +486,11 @@ configs/*-check*json
 configs/*-test*json
 configs/*-report*.json
 configs/*-status*.json
-configs/*config*.json
+configs/*-config*.json
+configs/optimism-fixed.yml
+configs/grafana/dashboards/mev-relay-health.json
+!configs/rpc/.gitkeep
+!configs/rpc/README.md
 !configs/*/config*.yml
 !configs/*/config*.yaml
 configs/alertmanager/alertmanager.yml
@@ -500,12 +512,24 @@ configs/*beacon*
 configs/health-endpoint.json
 configs/haproxy*
 configs/mev-boost-config.json
-configs/*rpc*
+config/*rpc*
+configs/*verifier*
+configs/postgresql*
+configs/redis*
+configs/planner*
+configs/*ready*.json
+configs/services/*
 configs/sysctl*
 configs/package.json
+configs/relays/*
+configs/mev-boost/MIN_BID_TUNING.md
+configs/mev-boost/OFAC_COMPLIANCE.md
+configs/mev-boost/relays.json
 configs/grafana/dashboards/README.md
 configs/grafana/dashboards/*.json
 !configs/grafana/dashboards/*.json
+configs/systemd/*.conf
+!configs/systemd/lighthouse-beacon.service.d/
 configs/systemd/promtail.service
 !ansible/group_vars/*.example
 !ansible/inventory.example
