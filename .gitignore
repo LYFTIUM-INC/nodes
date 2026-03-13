@@ -426,8 +426,8 @@ clients/ethereum/*/*backup*
 clients/ethereum/*/*bak*
 clients/alternative/*/config/*.toml
 clients/alternative/*/config/*.json
-clients/ethereum/*/config/*.toml
-clients/ethereum/*/config/Dockerfile
+clients/ethereum/ethereum/erigon/config/
+clients/ethereum/ethereum/erigon/Dockerfile
 clients/*/start-*.sh.bak
 
 # ------------------------------------------------------------------------------
@@ -547,6 +547,9 @@ consensus/*data.corrupted*
 consensus/*/geth/
 consensus/*-geth/
 consensus/*/start-lighthouse-beacon.sh.bak
+consensus/*/beacon/*.bak/
+consensus/*/beacon/*corrupted*/
+consensus/lighthouse/data.corrupted*/*
 clients/l2/optimism/*_db/
 clients/l2/optimism/*/bin/
 
