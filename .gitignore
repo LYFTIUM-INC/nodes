@@ -298,9 +298,96 @@ docker/*/prometheus.yml/prometheus.yml
 !scripts/
 !scripts/**/*.py
 !scripts/**/*.sh
-!tools/
-!tools/**/*.py
-!tools/**/*.sh
+!tools/testing/
+!tools/debugging/test_broadcasting_manager.ml
+
+# MONITORING - Python scripts and config files tracked
+!monitoring/**/*.py
+!monitoring/.github/
+!monitoring/.eslintrc.js
+!monitoring/.prettierrc.js
+monitoring/mev-infrastructure/
+monitoring/*.json
+
+# PERFORMANCE - scripts and configs tracked
+!performance/
+!performance/**/*.py
+
+# TESTS - tracked
+!tests/
+!tests/**/*.py
+!tests/**/*.yml
+!tests/**/requirements.txt
+tests/*.json
+tests/**/*.json
+
+# TERRAFORM - tracked
+!terraform/
+!terraform/**/*.tf
+!terraform/.gitignore
+!terraform/README.md
+
+# STRATEGY, PREVENTIVE - tracked
+!strategy/
+!preventive/
+
+# RESOURCE MANAGEMENT - tracked
+!resource-management/
+
+# RETHER/RBUILDER/MEV-BOOST - tracked source code
+!rbuilder/
+!rbuilder-app/
+
+# SECURITY - tracked code and docs
+!security/
+!security/**/*.md
+security/iptables_backup*
+security/IMMEDIATE_*.md
+
+# NETWORKS - tracked
+!networks/
+!networks/**/*.toml
+!networks/**/*.json
+
+# POLYGON - tracked
+!polygon/
+!polygon/**/*.toml
+!polygon/**/*.json
+
+# EXTERNAL RPCS - tracked
+!external_rpcs/
+!external_rpcs/**/*.json
+
+# DISASTER RECOVERY - tracked
+!disaster-recovery/
+
+# MEV MODULES - tracked
+!mev/
+!mev/**/*.py
+!mev/**/*.ml
+!mev/**/*.sh
+!mev/**/*.md
+!mev/**/*.json
+!mev/**/*.txt
+!mev/**/*.yml
+!mev/**/*.yaml
+!mev/**/*.Dockerfile
+mev/ocaml_core/test_*
+mev/strategies/*.backup*
+mev-private_mempool-setup.md
+
+# MEV-BOOST source - tracked
+!mev-boost/config/
+
+# MEV-GETH - tracked
+!mev-geth/
+
+# DOCS - tracked documentation
+!docs/
+!docs/**/*.md
+!docs/**/*.json
+docs/research/*.json
+docs/reports/*.json
 
 # ------------------------------------------------------------------------------
 # AI TOOLING & SESSION HISTORY
@@ -420,6 +507,14 @@ test_*.sh
 *_QUICK_START.sh
 deploy-*.sh
 l2-*.sh
+blockchain_node_monitor.py
+compliance_report.md
+MEV_OPERATIONS_VALIDATION.py
+MEV_QUICK_START.sh
+node_admin_report.json
+setup_jwt_auth.sh
+smart_contract_mcp.log
+l2-networks-deploy.yml
 
 # ------------------------------------------------------------------------------
 # EXTERNAL BLOCKCHAIN CLIENT SOURCES (use submodules instead)
@@ -450,6 +545,8 @@ consensus/*/slashing_protection.sqlite3
 consensus/*corrupted*
 consensus/*data.corrupted*
 consensus/*/geth/
+consensus/*-geth/
+consensus/*/start-lighthouse-beacon.sh.bak
 clients/l2/optimism/*_db/
 clients/l2/optimism/*/bin/
 
@@ -487,8 +584,10 @@ configs/*-test*json
 configs/*-report*.json
 configs/*-status*.json
 configs/*-config*.json
+configs/*validation*.json
+configs/*benchmark*.json
 configs/optimism-fixed.yml
-configs/grafana/dashboards/mev-relay-health.json
+configs/grafana/dashboards/*-health.json
 !configs/rpc/.gitkeep
 !configs/rpc/README.md
 !configs/*/config*.yml
