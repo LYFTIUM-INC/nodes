@@ -1,0 +1,229 @@
+# Node Recovery Configuration
+# Defines recovery procedures and parameters for each blockchain node
+
+chains:
+  ethereum:
+    rpc_url: "http://localhost:8545"
+    service_name: "erigon"
+    container_name: "ethereum-node"
+    min_peers: 10
+    database_path: "/data/blockchain/nodes/ethereum/primary/erigon"
+    peer_cache_path: "/data/blockchain/nodes/ethereum/primary/erigon/nodes.json"
+    
+    # Recovery commands
+    add_peers_command: "curl -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"admin_addPeer\",\"params\":[\"enode://BOOTSTRAP_NODE\"],\"id\":1}' http://localhost:8545"
+    fast_sync_command: "systemctl restart erigon"
+    reset_network_command: "rm -f /data/blockchain/nodes/ethereum/primary/erigon/nodes.json"
+    restore_command: "/data/blockchain/nodes/maintenance/scripts/backup_manager.py restore ethereum"
+    resync_command: "rm -rf /data/blockchain/nodes/ethereum/primary/erigon/chaindata && systemctl restart erigon"
+    docker_run_command: "docker run -d --name ethereum-node --restart unless-stopped -p 8545:8545 -v /data/blockchain/nodes/ethereum:/data ethereum/client-go"
+    memory_limit: "16G"
+    
+    bootstrap_nodes:
+      - "enode://d860a01f9722d78051619d1e2351aba3f43f943f6f00718d1b9baa4101932a1f5011f16bb2b1bb35db20d6fe28fa0bf09636d26a87d31de9ec6203eeedb1f666@18.138.108.67:30303"
+      - "enode://22a8232c3abc76a16ae9d6c3b164f98775fe226f0917b0ca871128a74a8e9630b458460865bab457221f1d448dd9791d24c4e5d88786180ac185df813a68d4de@3.209.45.79:30303"
+    
+  arbitrum:
+    rpc_url: "http://localhost:8547"
+    service_name: "arbitrum-node"
+    container_name: "arbitrum-node"
+    min_peers: 5
+    database_path: "/data/blockchain/nodes/arbitrum/primary/arbitrum"
+    peer_cache_path: "/data/blockchain/nodes/arbitrum/primary/arbitrum/nodes.json"
+    
+    add_peers_command: "curl -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"admin_addPeer\",\"params\":[\"enode://BOOTSTRAP_NODE\"],\"id\":1}' http://localhost:8547"
+    fast_sync_command: "systemctl restart arbitrum-node"
+    reset_network_command: "rm -f /data/blockchain/nodes/arbitrum/primary/arbitrum/nodes.json"
+    restore_command: "/data/blockchain/nodes/maintenance/scripts/backup_manager.py restore arbitrum"
+    resync_command: "rm -rf /data/blockchain/nodes/arbitrum/primary/arbitrum/chaindata && systemctl restart arbitrum-node"
+    docker_run_command: "docker run -d --name arbitrum-node --restart unless-stopped -p 8547:8547 -v /data/blockchain/nodes/arbitrum:/data offchainlabs/nitro-node"
+    memory_limit: "12G"
+    
+    bootstrap_nodes:
+      - "enode://2f19f4c0b3c4ac3b1d6dd79d34de888ad87c3a4a2a68395a5c4e8d7c4c4ee6a4d3c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4@18.211.53.16:30303"
+    
+  polygon:
+    rpc_url: "http://localhost:8548"
+    service_name: "polygon-bor"
+    container_name: "polygon-bor"
+    min_peers: 8
+    database_path: "/data/blockchain/nodes/polygon/bor/chaindata"
+    
+    add_peers_command: "curl -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"admin_addPeer\",\"params\":[\"enode://BOOTSTRAP_NODE\"],\"id\":1}' http://localhost:8548"
+    fast_sync_command: "systemctl restart polygon-bor"
+    restore_command: "/data/blockchain/nodes/maintenance/scripts/backup_manager.py restore polygon"
+    resync_command: "rm -rf /data/blockchain/nodes/polygon/bor/chaindata && systemctl restart polygon-bor"
+    docker_run_command: "docker run -d --name polygon-bor --restart unless-stopped -p 8548:8548 -v /data/blockchain/nodes/polygon:/data 0xpolygon/bor"
+    memory_limit: "10G"
+    
+    bootstrap_nodes:
+      - "enode://0cb82b395094ee4a2915e9714894627de9ed8498fb881cec6db7c65e8b9a5bd7f2f25cc84e71e89d0947e51c76e85d0847de848c7782b13c0255247a6758178@44.232.55.71:30303"
+    
+  optimism:
+    rpc_url: "http://localhost:8549"
+    service_name: "optimism-node"
+    container_name: "optimism-node"
+    min_peers: 5
+    database_path: "/data/blockchain/nodes/optimism/primary/geth"
+    
+    fast_sync_command: "systemctl restart optimism-node"
+    restore_command: "/data/blockchain/nodes/maintenance/scripts/backup_manager.py restore optimism"
+    resync_command: "rm -rf /data/blockchain/nodes/optimism/primary/geth/chaindata && systemctl restart optimism-node"
+    docker_run_command: "docker run -d --name optimism-node --restart unless-stopped -p 8549:8549 -v /data/blockchain/nodes/optimism:/data ethereumoptimism/op-geth"
+    memory_limit: "8G"
+    
+  base:
+    rpc_url: "http://localhost:8550"
+    service_name: "base-node"
+    container_name: "base-node"
+    min_peers: 5
+    database_path: "/data/blockchain/nodes/base/primary/geth"
+    
+    fast_sync_command: "systemctl restart base-node"
+    restore_command: "/data/blockchain/nodes/maintenance/scripts/backup_manager.py restore base"
+    resync_command: "rm -rf /data/blockchain/nodes/base/primary/geth/chaindata && systemctl restart base-node"
+    docker_run_command: "docker run -d --name base-node --restart unless-stopped -p 8550:8550 -v /data/blockchain/nodes/base:/data us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth"
+    memory_limit: "8G"
+    
+  bsc:
+    rpc_url: "http://localhost:8551"
+    service_name: "bsc-node"
+    container_name: "bsc-node"
+    min_peers: 8
+    database_path: "/data/blockchain/nodes/bsc/primary/geth"
+    
+    add_peers_command: "curl -X POST -H 'Content-Type: application/json' --data '{\"jsonrpc\":\"2.0\",\"method\":\"admin_addPeer\",\"params\":[\"enode://BOOTSTRAP_NODE\"],\"id\":1}' http://localhost:8551"
+    fast_sync_command: "systemctl restart bsc-node"
+    restore_command: "/data/blockchain/nodes/maintenance/scripts/backup_manager.py restore bsc"
+    resync_command: "rm -rf /data/blockchain/nodes/bsc/primary/geth/chaindata && systemctl restart bsc-node"
+    docker_run_command: "docker run -d --name bsc-node --restart unless-stopped -p 8551:8551 -v /data/blockchain/nodes/bsc:/data bnb-chain/bsc"
+    memory_limit: "12G"
+    
+    bootstrap_nodes:
+      - "enode://433c96c4f1c9b7b8d9e7c4a4c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4c4c4a4@18.139.225.37:30303"
+    
+  avalanche:
+    rpc_url: "http://localhost:9650/ext/bc/C/rpc"
+    service_name: "avalanche-node"
+    container_name: "avalanche-node"
+    min_peers: 6
+    database_path: "/data/blockchain/nodes/avalanche/primary/db"
+    
+    fast_sync_command: "systemctl restart avalanche-node"
+    restore_command: "/data/blockchain/nodes/maintenance/scripts/backup_manager.py restore avalanche"
+    resync_command: "rm -rf /data/blockchain/nodes/avalanche/primary/db && systemctl restart avalanche-node"
+    docker_run_command: "docker run -d --name avalanche-node --restart unless-stopped -p 9650:9650 -v /data/blockchain/nodes/avalanche:/data avaplatform/avalanchego"
+    memory_limit: "8G"
+    
+  solana:
+    rpc_url: "http://localhost:8899"
+    service_name: "solana-dev"
+    container_name: "solana-node"
+    min_peers: 15
+    database_path: "/data/blockchain/nodes/solana/primary/ledger"
+    
+    fast_sync_command: "systemctl restart solana-dev"
+    restore_command: "/data/blockchain/nodes/maintenance/scripts/backup_manager.py restore solana"
+    resync_command: "rm -rf /data/blockchain/nodes/solana/primary/ledger && systemctl restart solana-dev"
+    docker_run_command: "docker run -d --name solana-node --restart unless-stopped -p 8899:8899 -v /data/blockchain/nodes/solana:/data solanalabs/solana"
+    memory_limit: "16G"
+
+# MEV-specific recovery
+mev_boost:
+  rpc_url: "http://localhost:18550"
+  service_name: "mev-boost"
+  container_name: "mev-boost"
+  
+  relay_endpoints:
+    - "https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net"
+    - "https://0x8b5af2a08a17b0ed95b3e56b76c96b7f7dcfb7b5b89c9b6c2d5e8e8f8e8f8e8f8e8f8e8f@relay-1.ultrasound.money"
+    
+  restart_command: "systemctl restart mev-boost"
+  docker_run_command: "docker run -d --name mev-boost --restart unless-stopped -p 18550:18550 flashbots/mev-boost"
+
+# Consensus client recovery
+consensus_clients:
+  lighthouse:
+    service_name: "lighthouse-beacon"
+    rpc_url: "http://localhost:5052"
+    restart_command: "systemctl restart lighthouse-beacon"
+    resync_command: "rm -rf /data/blockchain/nodes/lighthouse/beacon && systemctl restart lighthouse-beacon"
+    
+  prysm:
+    service_name: "prysm-beacon"
+    rpc_url: "http://localhost:3500"
+    restart_command: "systemctl restart prysm-beacon"
+
+# Recovery timeouts and thresholds
+recovery_settings:
+  # Maximum time to wait for recovery actions
+  timeouts:
+    service_restart: 120  # seconds
+    container_restart: 180
+    sync_resume: 1800  # 30 minutes
+    peer_connection: 300  # 5 minutes
+    
+  # Health check intervals during recovery
+  health_check_interval: 30  # seconds
+  max_recovery_attempts: 3
+  
+  # Escalation procedures
+  escalation:
+    # If basic recovery fails, try these
+    advanced_recovery:
+      - "full_resync"
+      - "restore_from_backup"
+      - "emergency_bootstrap"
+    
+    # Final escalation - manual intervention required
+    manual_intervention_triggers:
+      - "database_corruption"
+      - "hardware_failure"
+      - "network_partition"
+
+# Emergency contacts and procedures
+emergency:
+  enabled: true
+  
+  # Contact information for escalation
+  contacts:
+    primary_oncall: "devops-oncall@company.com"
+    blockchain_team: "blockchain-team@company.com"
+    infrastructure_team: "infra-team@company.com"
+  
+  # Emergency shutdown procedures
+  emergency_shutdown:
+    enabled: true
+    # Stop all non-critical services to preserve resources
+    preserve_chains: ["ethereum", "arbitrum"]  # Critical chains to keep running
+    
+  # Emergency recovery procedures
+  emergency_recovery:
+    # If all else fails, restore from snapshots
+    snapshot_sources:
+      ethereum: "gs://ethereum-snapshots/latest"
+      arbitrum: "gs://arbitrum-snapshots/latest"
+    
+    # Emergency bootstrap nodes
+    emergency_bootstrap:
+      enabled: true
+      bootstrap_script: "/data/blockchain/nodes/maintenance/scripts/emergency_bootstrap.sh"
+
+# Recovery monitoring
+monitoring:
+  enabled: true
+  
+  # Send alerts during recovery
+  alert_on_recovery_start: true
+  alert_on_recovery_success: true
+  alert_on_recovery_failure: true
+  
+  # Recovery metrics to track
+  metrics:
+    - "recovery_duration"
+    - "recovery_success_rate"
+    - "most_common_failures"
+    - "time_to_recovery"
+  
+  # Dashboard integration
+  dashboard_webhook: "http://localhost:3000/api/recovery-events"

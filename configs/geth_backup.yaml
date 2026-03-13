@@ -19,6 +19,7 @@ ws:
   origins: ["*"]
 
 # Authenticated RPC Configuration
+# TODO(SECURITY): Change addr to "127.0.0.1:8554" for production. See docs/checklists/ENGINE_API_SECURITY.md
 authrpc:
   addr: "0.0.0.0:8554"
   jwtsecret: /data/blockchain/storage/jwt-secret-common.hex

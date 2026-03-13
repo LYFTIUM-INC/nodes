@@ -16,6 +16,7 @@ This document provides essential information for autonomous agents (AI coding as
 
 **Key Components:**
 - Execution Layer: Erigon (PRIMARY for MEV – HTTP 8545, Engine API 8552)
+  - *Note: Erigon is current primary; Reth recommended as future MEV primary – migration path documented in ROADMAP*
 - Consensus Layer: Lighthouse beacon nodes (port 5052)
 - MEV Infrastructure: MEV-Boost (18551), RBuilder (18552), private mempool, arbitrage engines
 - Analytics: ClickHouse with 22.5B+ blockchain data rows
@@ -301,6 +302,9 @@ ps aux | grep erigon
 - **CONTRIBUTING.md**: Contribution guidelines and code review process
 - **VALIDATION_REPORT.md**: Professional validation and reorganization report
 - **REORGANIZATION_REPORT.md**: Infrastructure reorganization summary
+
+### Research Implementation & Best Practices
+- **[Research Implementation Status](docs/checklists/RESEARCH_IMPLEMENTATION_STATUS.md)**: Consolidated status of research recommendations from MEV Infrastructure, Ethereum Node Operations, MEV Monitoring, and MEV Security documents. Includes Quick Verification script for MEV-Boost metrics, Prometheus config, JWT, and builder fallback.
 
 ### External References
 - [Erigon Documentation](https://erigon.xyz/docs/)

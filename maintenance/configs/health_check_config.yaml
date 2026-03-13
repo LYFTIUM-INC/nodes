@@ -1,0 +1,137 @@
+# Health Check Configuration for Blockchain Nodes
+# This configuration defines all node endpoints and monitoring parameters
+
+chains:
+  ethereum:
+    enabled: true
+    rpc_url: "http://localhost:8545"
+    container_name: "ethereum-node"
+    process_name: "erigon"
+    log_path: "/data/blockchain/nodes/logs/ethereum.log"
+    min_peers: 10
+    sync_threshold: 99.5
+    health_check_interval: 60  # seconds
+    
+  arbitrum:
+    enabled: true
+    rpc_url: "http://localhost:8547"
+    container_name: "arbitrum-node"
+    process_name: "arbitrum"
+    log_path: "/data/blockchain/nodes/logs/arbitrum.log"
+    min_peers: 5
+    sync_threshold: 99.0
+    health_check_interval: 60
+    
+  polygon:
+    enabled: true
+    rpc_url: "http://localhost:8548"
+    container_name: "polygon-bor"
+    process_name: "bor"
+    log_path: "/data/blockchain/nodes/logs/polygon.log"
+    min_peers: 8
+    sync_threshold: 99.0
+    health_check_interval: 60
+    
+  optimism:
+    enabled: true
+    rpc_url: "http://localhost:8549"
+    container_name: "optimism-node"
+    process_name: "op-node"
+    log_path: "/data/blockchain/nodes/logs/optimism.log"
+    min_peers: 5
+    sync_threshold: 99.0
+    health_check_interval: 60
+    
+  base:
+    enabled: true
+    rpc_url: "http://localhost:8550"
+    container_name: "base-node"
+    process_name: "op-node"
+    log_path: "/data/blockchain/nodes/logs/base.log"
+    min_peers: 5
+    sync_threshold: 99.0
+    health_check_interval: 60
+    
+  bsc:
+    enabled: true
+    rpc_url: "http://localhost:8551"
+    container_name: "bsc-node"
+    process_name: "geth"
+    log_path: "/data/blockchain/nodes/logs/bsc.log"
+    min_peers: 8
+    sync_threshold: 99.0
+    health_check_interval: 60
+    
+  avalanche:
+    enabled: true
+    rpc_url: "http://localhost:9650/ext/bc/C/rpc"
+    container_name: "avalanche-node"
+    process_name: "avalanchego"
+    log_path: "/data/blockchain/nodes/logs/avalanche.log"
+    min_peers: 6
+    sync_threshold: 99.0
+    health_check_interval: 60
+    
+  solana:
+    enabled: true
+    rpc_url: "http://localhost:8899"
+    container_name: "solana-node"
+    process_name: "solana-validator"
+    log_path: "/data/blockchain/nodes/logs/solana.log"
+    min_peers: 15
+    sync_threshold: 95.0
+    health_check_interval: 60
+
+# System resource thresholds
+system_thresholds:
+  cpu_warning: 80
+  cpu_critical: 90
+  memory_warning: 80
+  memory_critical: 90
+  disk_warning: 90
+  disk_critical: 95
+  
+# Network latency thresholds (ms)
+network_thresholds:
+  rpc_warning: 1000
+  rpc_critical: 5000
+  
+# Alert configuration
+notifications:
+  email:
+    enabled: false
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    use_tls: true
+    from: "blockchain-alerts@company.com"
+    to:
+      - "devops@company.com"
+      - "blockchain-team@company.com"
+    username: ""
+    password: ""
+    
+  webhook:
+    enabled: false
+    url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    
+  discord:
+    enabled: false
+    webhook_url: "https://discord.com/api/webhooks/YOUR/WEBHOOK/URL"
+
+# Database settings
+database:
+  retention_days: 30
+  cleanup_interval: 86400  # seconds (24 hours)
+  
+# MEV-specific monitoring
+mev:
+  enabled: true
+  mev_boost_endpoint: "http://localhost:18550"
+  relay_endpoints:
+    - "https://0xac6e77dfe25ecd6110b8e780608cce0dab71fdd5ebea22a16c0205200f2f8e2e3ad3b71d3499c54ad14d6c21b41a37ae@boost-relay.flashbots.net"
+    - "https://0x8b5af2a08a17b0ed95b3e56b76c96b7f7dcfb7b5b89c9b6c2d5e8e8f8e8f8e8f8e8f8e8f@relay-1.ultrasound.money"
+  performance_thresholds:
+    bid_latency_warning: 100  # ms
+    bid_latency_critical: 500  # ms
+    block_production_rate_warning: 95  # %
+    block_production_rate_critical: 90  # %

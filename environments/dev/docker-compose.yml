@@ -1,0 +1,149 @@
+# DEVELOPMENT BLOCKCHAIN INFRASTRUCTURE
+# CI/CD Best Practices Implementation
+# Version: 2.0
+# Environment: Development
+
+version: '3.8'
+
+# ============================================================================
+# DEVELOPMENT-SPECIFIC CONFIGURATIONS
+# Fast startup, local testnets, hot-reload capabilities
+# ============================================================================
+
+networks:
+  blockchain_dev:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.40.0.0/24
+
+services:
+
+  # ==========================================================================
+  # ETHEREUM LOCAL DEVELOPMENT NODE
+  # ==========================================================================
+  ethereum-dev:
+    image: ethereum/client-go:stable
+    container_name: blockchain_ethereum_dev
+    command: [
+      "--dev",
+      "--dev.period", "1",
+      "--http", "--http.addr", "0.0.0.0", "--http.port", "8545",
+      "--http.api", "eth,net,web3,debug,trace,txpool,personal,miner,admin",
+      "--ws", "--ws.addr", "0.0.0.0", "--ws.port", "8546",
+      "--ws.api", "eth,net,web3,debug,trace,txpool,personal,miner,admin",
+      "--http.corsdomain", "*",
+      "--ws.origins", "*",
+      "--allow-insecure-unlock",
+      "--rpc.gascap", "0",
+      "--rpc.txfeecap", "0",
+      "--mine",
+      "--miner.etherbase", "0x0000000000000000000000000000000000000001"
+    ]
+    ports:
+      - "8545:8545"   # HTTP RPC (open for dev)
+      - "8546:8546"   # WebSocket (open for dev)
+    networks:
+      - blockchain_dev
+    healthcheck:
+      test: ["CMD", "geth", "attach", "--exec", "eth.blockNumber"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: "1.0"
+    labels:
+      - "com.blockchain.service=ethereum"
+      - "com.blockchain.environment=development"
+      - "com.blockchain.type=l1"
+      - "com.blockchain.network=dev"
+
+  # ==========================================================================
+  # SOLANA LOCAL VALIDATOR
+  # ==========================================================================
+  solana-dev:
+    image: solanalabs/solana:stable
+    container_name: blockchain_solana_dev
+    command: [
+      "solana-test-validator",
+      "--ledger", "/data/solana",
+      "--rpc-bind-address", "0.0.0.0:8899",
+      "--rpc-port", "8899",
+      "--faucet-sol", "1000000",
+      "--reset"
+    ]
+    ports:
+      - "8899:8899"   # RPC (open for dev)
+    volumes:
+      - solana_dev_data:/data/solana
+    networks:
+      - blockchain_dev
+    healthcheck:
+      test: ["CMD", "solana", "--url", "http://localhost:8899", "cluster-version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 4g
+    cpus: "1.0"
+    labels:
+      - "com.blockchain.service=solana"
+      - "com.blockchain.environment=development"
+      - "com.blockchain.type=l1"
+      - "com.blockchain.network=localnet"
+
+  # ==========================================================================
+  # DEVELOPMENT TOOLS
+  # ==========================================================================
+  ganache:
+    image: trufflesuite/ganache:latest
+    container_name: blockchain_ganache_dev
+    command: [
+      "--host", "0.0.0.0",
+      "--port", "7545",
+      "--accounts", "10",
+      "--defaultBalanceEther", "1000",
+      "--gasLimit", "0x1fffffffffffff",
+      "--gasPrice", "0x1",
+      "--networkId", "1337",
+      "--deterministic"
+    ]
+    ports:
+      - "7545:7545"   # Ganache RPC
+    networks:
+      - blockchain_dev
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: "0.5"
+    labels:
+      - "com.blockchain.service=ganache"
+      - "com.blockchain.environment=development"
+      - "com.blockchain.type=testnet"
+
+  # ==========================================================================
+  # HARDHAT NODE
+  # ==========================================================================
+  hardhat:
+    image: node:18-alpine
+    container_name: blockchain_hardhat_dev
+    working_dir: /app
+    command: ["npx", "hardhat", "node", "--hostname", "0.0.0.0", "--port", "8547"]
+    ports:
+      - "8547:8547"   # Hardhat RPC
+    volumes:
+      - ../../dev-tools/hardhat:/app
+    networks:
+      - blockchain_dev
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: "0.5"
+    labels:
+      - "com.blockchain.service=hardhat"
+      - "com.blockchain.environment=development"
+      - "com.blockchain.type=testnet"
+
+volumes:
+  solana_dev_data:

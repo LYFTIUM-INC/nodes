@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Node Maintenance Dashboard</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.24.0/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            line-height: 1.6;
+        }
+
+        .dashboard-container {
+            display: grid;
+            grid-template-areas: 
+                "header header header"
+                "sidebar main alerts"
+                "sidebar charts alerts";
+            grid-template-columns: 250px 1fr 300px;
+            grid-template-rows: 80px 1fr 400px;
+            height: 100vh;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .header {
+            grid-area: header;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 10px;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .system-status {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #00ff88;
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .sidebar {
+            grid-area: sidebar;
+            background: #1a1a2e;
+            border-radius: 10px;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+
+        .nav-title {
+            color: #00d4ff;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .nav-item {
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            background: #0f3460;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #16213e;
+            border-left-color: #00ff88;
+            transform: translateX(5px);
+        }
+
+        .nav-item.active {
+            background: #16213e;
+            border-left-color: #00d4ff;
+        }
+
+        .main-content {
+            grid-area: main;
+            background: #1a1a2e;
+            border-radius: 10px;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            border: 1px solid #2a2a4e;
+        }
+
+        .card-title {
+            color: #00d4ff;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chain-card {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chain-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-healthy { background: #00ff88; }
+        .status-warning { background: #ffaa00; }
+        .status-critical { background: #ff4444; }
+        .status-unknown { background: #888; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            padding: 0.3rem 0;
+            border-bottom: 1px solid #2a2a4e;
+        }
+
+        .metric-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .metric-value {
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .alerts-panel {
+            grid-area: alerts;
+            background: #1a1a2e;
+            border-radius: 10px;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .alerts-header {
+            color: #ff4444;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .alert-item {
+            background: #2a1a1a;
+            border-left: 4px solid #ff4444;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .alert-critical { border-left-color: #ff4444; }
+        .alert-warning { border-left-color: #ffaa00; }
+        .alert-info { border-left-color: #00d4ff; }
+
+        .alert-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .alert-message {
+            font-size: 0.9rem;
+            color: #ccc;
+            margin-bottom: 0.5rem;
+        }
+
+        .alert-time {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .charts-section {
+            grid-area: charts;
+            background: #1a1a2e;
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .charts-header {
+            color: #00d4ff;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        .chart-container {
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            height: 300px;
+        }
+
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .performance-metric {
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .performance-score {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 0.5rem;
+        }
+
+        .performance-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .progress-bar {
+            background: #2a2a4e;
+            border-radius: 10px;
+            height: 8px;
+            margin: 0.5rem 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            background: linear-gradient(90deg, #00ff88 0%, #00d4ff 100%);
+        }
+
+        .mev-dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .mev-metric {
+            background: linear-gradient(135deg, #1a0a2e 0%, #2e1065 100%);
+            border-radius: 10px;
+            padding: 1.5rem;
+            border: 1px solid #4a1a8a;
+        }
+
+        .mev-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #bb86fc;
+            margin-bottom: 0.5rem;
+        }
+
+        .mev-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: #888;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #2a2a4e;
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            z-index: 1000;
+        }
+
+        .connected {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .disconnected {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .refresh-button {
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-left: 1rem;
+        }
+
+        .refresh-button:hover {
+            background: #00b8e6;
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard-container {
+                grid-template-areas: 
+                    "header header"
+                    "sidebar main"
+                    "alerts charts";
+                grid-template-columns: 250px 1fr;
+                grid-template-rows: 80px 1fr 400px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                grid-template-areas: 
+                    "header"
+                    "main"
+                    "charts"
+                    "alerts";
+                grid-template-columns: 1fr;
+                grid-template-rows: 80px 1fr auto auto;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: -250px;
+                top: 0;
+                height: 100vh;
+                z-index: 1000;
+                transition: left 0.3s ease;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔗 Blockchain Node Maintenance Dashboard</h1>
+            <div class="system-status">
+                <div class="status-item">
+                    <div class="status-value" id="cpu-usage">--</div>
+                    <div class="status-label">CPU</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-value" id="memory-usage">--</div>
+                    <div class="status-label">Memory</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-value" id="healthy-chains">--</div>
+                    <div class="status-label">Healthy Chains</div>
+                </div>
+                <button class="refresh-button" onclick="refreshData()">Refresh</button>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="nav-section">
+                <div class="nav-title">Overview</div>
+                <div class="nav-item active" onclick="showSection('overview')">System Overview</div>
+                <div class="nav-item" onclick="showSection('chains')">Chain Status</div>
+                <div class="nav-item" onclick="showSection('performance')">Performance</div>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">MEV Operations</div>
+                <div class="nav-item" onclick="showSection('mev')">MEV Dashboard</div>
+                <div class="nav-item" onclick="showSection('arbitrage')">Arbitrage</div>
+                <div class="nav-item" onclick="showSection('sandwich')">Sandwich Attacks</div>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">Maintenance</div>
+                <div class="nav-item" onclick="showSection('health')">Health Checks</div>
+                <div class="nav-item" onclick="showSection('backups')">Backups</div>
+                <div class="nav-item" onclick="showSection('updates')">Updates</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Overview Section -->
+            <div class="content-section active" id="overview-section">
+                <h2 style="color: #00d4ff; margin-bottom: 1rem;">System Overview</h2>
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="card-title">📊 System Resources</div>
+                        <div class="metric-row">
+                            <span class="metric-label">CPU Usage</span>
+                            <span class="metric-value" id="overview-cpu">--</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="cpu-progress" style="width: 0%"></div>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Memory Usage</span>
+                            <span class="metric-value" id="overview-memory">--</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="memory-progress" style="width: 0%"></div>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Disk Usage</span>
+                            <span class="metric-value" id="overview-disk">--</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="disk-progress" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">🌐 Network Status</div>
+                        <div class="metric-row">
+                            <span class="metric-label">Bytes Sent</span>
+                            <span class="metric-value" id="network-sent">--</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Bytes Received</span>
+                            <span class="metric-value" id="network-recv">--</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Load Average</span>
+                            <span class="metric-value" id="load-average">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">⛓️ Chain Health</div>
+                        <div class="metric-row">
+                            <span class="metric-label">Healthy Chains</span>
+                            <span class="metric-value" id="healthy-count">--</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Total Chains</span>
+                            <span class="metric-value" id="total-chains">--</span>
+                        </div>
+                        <div class="metric-row">
+                            <span class="metric-label">Health Rate</span>
+                            <span class="metric-value" id="health-rate">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chains Section -->
+            <div class="content-section" id="chains-section">
+                <h2 style="color: #00d4ff; margin-bottom: 1rem;">Blockchain Chains Status</h2>
+                <div class="cards-grid" id="chains-grid">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading chain data...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Section -->
+            <div class="content-section" id="performance-section">
+                <h2 style="color: #00d4ff; margin-bottom: 1rem;">Performance Metrics</h2>
+                <div class="performance-grid" id="performance-grid">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading performance data...
+                    </div>
+                </div>
+            </div>
+
+            <!-- MEV Section -->
+            <div class="content-section" id="mev-section">
+                <h2 style="color: #bb86fc; margin-bottom: 1rem;">MEV Operations Dashboard</h2>
+                <div class="mev-dashboard" id="mev-dashboard">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        Loading MEV data...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Other sections -->
+            <div class="content-section" id="arbitrage-section">
+                <h2 style="color: #00d4ff; margin-bottom: 1rem;">Arbitrage Opportunities</h2>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading arbitrage data...
+                </div>
+            </div>
+
+            <div class="content-section" id="sandwich-section">
+                <h2 style="color: #00d4ff; margin-bottom: 1rem;">Sandwich Attack Monitoring</h2>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading sandwich data...
+                </div>
+            </div>
+
+            <div class="content-section" id="health-section">
+                <h2 style="color: #00d4ff; margin-bottom: 1rem;">Health Checks</h2>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading health check data...
+                </div>
+            </div>
+
+            <div class="content-section" id="backups-section">
+                <h2 style="color: #00d4ff; margin-bottom: 1rem;">Backup Status</h2>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading backup data...
+                </div>
+            </div>
+
+            <div class="content-section" id="updates-section">
+                <h2 style="color: #00d4ff; margin-bottom: 1rem;">Update Management</h2>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading update data...
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Panel -->
+        <div class="alerts-panel">
+            <div class="alerts-header">
+                🚨 Active Alerts
+                <span id="alert-count">(0)</span>
+            </div>
+            <div id="alerts-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading alerts...
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="charts-section">
+            <div class="charts-header">📈 Real-time Charts</div>
+            <div class="chart-container">
+                <canvas id="systemChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div class="connection-status disconnected" id="connection-status">
+        Disconnected
+    </div>
+
+    <script>
+        // Initialize WebSocket connection
+        const socket = io();
+        let systemChart;
+
+        // Connection status
+        socket.on('connect', function() {
+            document.getElementById('connection-status').className = 'connection-status connected';
+            document.getElementById('connection-status').textContent = 'Connected';
+            console.log('Connected to monitoring dashboard');
+        });
+
+        socket.on('disconnect', function() {
+            document.getElementById('connection-status').className = 'connection-status disconnected';
+            document.getElementById('connection-status').textContent = 'Disconnected';
+            console.log('Disconnected from monitoring dashboard');
+        });
+
+        // Real-time updates
+        socket.on('system_update', function(data) {
+            updateSystemOverview(data);
+        });
+
+        socket.on('chains_update', function(data) {
+            updateChainsStatus(data);
+        });
+
+        socket.on('alerts_update', function(data) {
+            updateAlerts(data);
+        });
+
+        // Navigation
+        function showSection(sectionName) {
+            // Hide all sections
+            const sections = document.querySelectorAll('.content-section');
+            sections.forEach(section => section.classList.remove('active'));
+
+            // Show selected section
+            document.getElementById(sectionName + '-section').classList.add('active');
+
+            // Update navigation
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Load section data
+            loadSectionData(sectionName);
+        }
+
+        // Update system overview
+        function updateSystemOverview(data) {
+            if (data.system) {
+                document.getElementById('cpu-usage').textContent = data.system.cpu_percent + '%';
+                document.getElementById('memory-usage').textContent = data.system.memory_percent + '%';
+                document.getElementById('overview-cpu').textContent = data.system.cpu_percent + '%';
+                document.getElementById('overview-memory').textContent = data.system.memory_percent + '%';
+                document.getElementById('overview-disk').textContent = data.system.disk_percent + '%';
+                document.getElementById('network-sent').textContent = data.system.network_sent_mb + ' MB';
+                document.getElementById('network-recv').textContent = data.system.network_recv_mb + ' MB';
+                document.getElementById('load-average').textContent = data.system.load_average || 'N/A';
+
+                // Update progress bars
+                document.getElementById('cpu-progress').style.width = data.system.cpu_percent + '%';
+                document.getElementById('memory-progress').style.width = data.system.memory_percent + '%';
+                document.getElementById('disk-progress').style.width = data.system.disk_percent + '%';
+            }
+
+            if (data.chains) {
+                document.getElementById('healthy-chains').textContent = data.chains.healthy + '/' + data.chains.total;
+                document.getElementById('healthy-count').textContent = data.chains.healthy;
+                document.getElementById('total-chains').textContent = data.chains.total;
+                document.getElementById('health-rate').textContent = data.chains.health_percentage + '%';
+            }
+
+            // Update chart
+            updateSystemChart(data);
+        }
+
+        // Update chains status
+        function updateChainsStatus(data) {
+            const chainsGrid = document.getElementById('chains-grid');
+            chainsGrid.innerHTML = '';
+
+            data.chains.forEach(chain => {
+                const chainCard = document.createElement('div');
+                chainCard.className = 'card chain-card';
+                
+                const statusClass = `status-${chain.status}`;
+                
+                chainCard.innerHTML = `
+                    <div class="chain-status">
+                        <div class="card-title">⛓️ ${chain.name.toUpperCase()}</div>
+                        <div class="status-indicator ${statusClass}"></div>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Status</span>
+                        <span class="metric-value">${chain.status}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">RPC Latency</span>
+                        <span class="metric-value">${chain.rpc_latency || 'N/A'} ms</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Block Height</span>
+                        <span class="metric-value">${chain.block_height || 'N/A'}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Peers</span>
+                        <span class="metric-value">${chain.peer_count || 'N/A'}</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Sync Status</span>
+                        <span class="metric-value">${chain.sync_status || 'Unknown'}</span>
+                    </div>
+                `;
+                
+                chainsGrid.appendChild(chainCard);
+            });
+        }
+
+        // Update alerts
+        function updateAlerts(data) {
+            const alertsContainer = document.getElementById('alerts-container');
+            const alertCount = document.getElementById('alert-count');
+            
+            alertCount.textContent = `(${data.count})`;
+            alertsContainer.innerHTML = '';
+
+            if (data.alerts.length === 0) {
+                alertsContainer.innerHTML = '<div style="text-align: center; color: #888; padding: 2rem;">No active alerts</div>';
+                return;
+            }
+
+            data.alerts.forEach(alert => {
+                const alertItem = document.createElement('div');
+                alertItem.className = `alert-item alert-${alert.severity}`;
+                
+                alertItem.innerHTML = `
+                    <div class="alert-title">${alert.type.replace('_', ' ').toUpperCase()}</div>
+                    <div class="alert-message">${alert.message}</div>
+                    <div class="alert-time">${new Date(alert.timestamp).toLocaleString()}</div>
+                `;
+                
+                alertsContainer.appendChild(alertItem);
+            });
+        }
+
+        // Initialize chart
+        function initializeChart() {
+            const ctx = document.getElementById('systemChart').getContext('2d');
+            systemChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'CPU %',
+                        data: [],
+                        borderColor: '#00d4ff',
+                        backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Memory %',
+                        data: [],
+                        borderColor: '#00ff88',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#ffffff'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#888888'
+                            },
+                            grid: {
+                                color: '#2a2a4e'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#888888'
+                            },
+                            grid: {
+                                color: '#2a2a4e'
+                            },
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update chart with new data
+        function updateSystemChart(data) {
+            if (!systemChart || !data.system) return;
+
+            const now = new Date().toLocaleTimeString();
+            
+            // Keep only last 20 data points
+            if (systemChart.data.labels.length >= 20) {
+                systemChart.data.labels.shift();
+                systemChart.data.datasets[0].data.shift();
+                systemChart.data.datasets[1].data.shift();
+            }
+            
+            systemChart.data.labels.push(now);
+            systemChart.data.datasets[0].data.push(data.system.cpu_percent);
+            systemChart.data.datasets[1].data.push(data.system.memory_percent);
+            
+            systemChart.update('none');
+        }
+
+        // Load section-specific data
+        function loadSectionData(sectionName) {
+            switch(sectionName) {
+                case 'performance':
+                    loadPerformanceData();
+                    break;
+                case 'mev':
+                    loadMEVData();
+                    break;
+                // Add other sections as needed
+            }
+        }
+
+        // Load performance data
+        async function loadPerformanceData() {
+            try {
+                const response = await axios.get('/api/performance');
+                const data = response.data;
+                
+                const performanceGrid = document.getElementById('performance-grid');
+                performanceGrid.innerHTML = '';
+                
+                // System performance metrics
+                if (data.system_performance) {
+                    Object.entries(data.system_performance).forEach(([key, value]) => {
+                        const metricDiv = document.createElement('div');
+                        metricDiv.className = 'performance-metric';
+                        metricDiv.innerHTML = `
+                            <div class="performance-score">${typeof value === 'object' ? value.efficiency_score || value.optimization_score || value.throughput_score || value.performance_score || 0 : value}</div>
+                            <div class="performance-label">${key.replace('_', ' ').toUpperCase()}</div>
+                        `;
+                        performanceGrid.appendChild(metricDiv);
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Failed to load performance data:', error);
+            }
+        }
+
+        // Load MEV data
+        async function loadMEVData() {
+            try {
+                const response = await axios.get('/api/mev');
+                const data = response.data;
+                
+                const mevDashboard = document.getElementById('mev-dashboard');
+                mevDashboard.innerHTML = '';
+                
+                // MEV-Boost metrics
+                if (data.mev_boost) {
+                    const mevBoostCard = document.createElement('div');
+                    mevBoostCard.className = 'mev-metric';
+                    mevBoostCard.innerHTML = `
+                        <div class="mev-value">${data.mev_boost.status}</div>
+                        <div class="mev-label">MEV-Boost Status</div>
+                    `;
+                    mevDashboard.appendChild(mevBoostCard);
+                }
+                
+                // Arbitrage metrics
+                if (data.arbitrage_opportunities) {
+                    const arbitrageCard = document.createElement('div');
+                    arbitrageCard.className = 'mev-metric';
+                    arbitrageCard.innerHTML = `
+                        <div class="mev-value">${data.arbitrage_opportunities.opportunities_detected}</div>
+                        <div class="mev-label">Arbitrage Opportunities</div>
+                    `;
+                    mevDashboard.appendChild(arbitrageCard);
+                }
+                
+                // Overall performance
+                if (data.overall_mev_performance) {
+                    const performanceCard = document.createElement('div');
+                    performanceCard.className = 'mev-metric';
+                    performanceCard.innerHTML = `
+                        <div class="mev-value">${data.overall_mev_performance.performance_score}%</div>
+                        <div class="mev-label">Overall MEV Performance</div>
+                    `;
+                    mevDashboard.appendChild(performanceCard);
+                }
+                
+            } catch (error) {
+                console.error('Failed to load MEV data:', error);
+            }
+        }
+
+        // Refresh data manually
+        function refreshData() {
+            location.reload();
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChart();
+            
+            // Load initial data
+            axios.get('/api/overview').then(response => {
+                updateSystemOverview(response.data);
+            });
+            
+            axios.get('/api/chains').then(response => {
+                updateChainsStatus(response.data);
+            });
+            
+            axios.get('/api/alerts').then(response => {
+                updateAlerts(response.data);
+            });
+        });
+
+        // Auto-refresh data every 30 seconds
+        setInterval(() => {
+            if (socket.connected) {
+                // Data will be updated via WebSocket
+                return;
+            }
+            
+            // Fallback to HTTP polling if WebSocket is disconnected
+            axios.get('/api/overview').then(response => {
+                updateSystemOverview(response.data);
+            }).catch(console.error);
+            
+            axios.get('/api/chains').then(response => {
+                updateChainsStatus(response.data);
+            }).catch(console.error);
+            
+            axios.get('/api/alerts').then(response => {
+                updateAlerts(response.data);
+            }).catch(console.error);
+        }, 30000);
+    </script>
+</body>
+</html>

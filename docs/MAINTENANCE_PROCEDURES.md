@@ -87,6 +87,77 @@ du -sh /data/blockchain/storage/*/chaindata | sort -hr | tail -10
 - **Critical**: 90% utilization
 - **Emergency**: 95% utilization
 
+### **3b. Disk and load reduction (critical / short-term)**
+
+When disk is >90% or the host is overloaded:
+
+**Immediate (next 30 minutes):**
+```bash
+# Delete old ClickHouse training data (30+ days)
+clickhouse-client --query="ALTER TABLE mev_realtime.training_samples DELETE WHERE collected_at < now() - INTERVAL 30 DAY"
+
+# Clean old spool files (7+ days)
+find /opt/mev-lab/spool -type f -mtime +7 -delete
+
+# Docker prune (reclaim unused images/containers)
+docker system prune -af
+```
+
+**Monitor disk every 60s (run in a terminal):**
+```bash
+watch -n 60 'df -h /'
+```
+
+**Erigon load reduction (applied 2026-03-11):**
+- Drop-in: `/etc/systemd/system/erigon.service.d/zz-reduce-load.conf` sets `CPUQuota=250%`, `Nice=5`
+- Runtime: `systemctl set-property erigon.service CPUQuota=250%`
+- **Takes effect on next restart.** To apply now: `sudo systemctl restart erigon.service` (sync will resume)
+
+**Log retention (tightened):**
+- `blockchain-nodes`: node logs 7 days; mev-infra 14 days
+- `mev-lab`: `/opt/mev-lab/logs`, `data/logs`, `mcp/logs` — 7 days (`/etc/logrotate.d/mev-lab`)
+
+**Optional cron (e.g. weekly spool cleanup + disk log):**
+```cron
+0 * * * * df -h / >> /var/log/disk-space.log 2>&1
+0 3 * * 0 find /opt/mev-lab/spool -type f -mtime +7 -delete 2>/dev/null
+```
+
+**Additional disk savings (applied as needed):**
+- **ClickHouse system log tables**: Truncated once; limit regrowth via `/etc/clickhouse-server/config.d/system-logs-limit.xml` (retention 7d/1GB). Re-truncate anytime: `clickhouse-client -q "TRUNCATE TABLE system.query_log; TRUNCATE TABLE system.trace_log; TRUNCATE TABLE system.text_log; TRUNCATE TABLE system.part_log; TRUNCATE TABLE system.metric_log; TRUNCATE TABLE system.processors_profile_log; TRUNCATE TABLE system.asynchronous_metric_log;"`
+- **Systemd journal**: Capped at 500M (`/etc/systemd/journald.conf.d/size-limit.conf`). Vacuum now: `journalctl --vacuum-size=400M`
+- **User caches**: `rm -rf ~/.cache/uv/cache/v* ~/.cache/pnpm/store/* ~/.cache/pre-commit/* ~/.cache/pip/* ~/.cache/node-gyp/*`
+- **Apt**: `apt-get clean; rm -rf /var/lib/apt/lists/*`
+- **Docker**: `docker builder prune -af; docker system prune -af`
+- **Scheduled**: `~/.cache/disk-maintenance.sh` — cron: hourly disk log, weekly spool + ClickHouse system log truncate (see crontab).
+- **ClickHouse retention**: `/etc/clickhouse-server/config.d/system-logs-limit.xml` (must be `chown clickhouse:clickhouse`). Restart: `sudo systemctl restart clickhouse-server`.
+- **Old kernels** (optional): `sudo apt autoremove --purge` to remove unused kernel packages.
+
+### **3c. Database integrity (Erigon and Lighthouse)**
+
+Run these while services are up (read-only). Ensures databases are not corrupted.
+
+**Live checks (no service stop):**
+```bash
+# Erigon: service, chaindata file sanity, logs, RPC sync
+systemctl is-active erigon.service
+test -s /data/blockchain/storage/erigon/chaindata/mdbx.dat && echo "Erigon chaindata OK"
+journalctl -u erigon.service --since "7 days ago" --no-pager | grep -iE 'corrupt|panic|invalid.*block|mdbx.*error' || true
+curl -s -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' http://127.0.0.1:8545
+
+# Erigon snapshot format (v1.0 vs v1.1)
+./scripts/maintenance/erigon-snapshot-check.sh
+
+# Lighthouse: file-only check (CURRENT present; version check needs service stopped)
+./scripts/maintenance/lighthouse-db-integrity-check.sh --skip-version-check
+```
+
+**Full integrity (maintenance window, services stopped):**
+- **Erigon:** Stop `erigon.service`, then run: `erigon snapshots integrity --datadir=/data/blockchain/storage/erigon --failFast=false`. Restart when done.
+- **Lighthouse:** Stop `lighthouse-beacon.service`, then run: `lighthouse database_manager version --datadir=/data/blockchain/nodes/consensus/lighthouse --network=mainnet`. Restart when done.
+
+See: `docs/LIGHTHOUSE_DATABASE_CORRUPTION_FIX_2026-03-06.md` for corruption recovery.
+
 ### **4. MEV Operations**
 ```bash
 #!/bin/bash

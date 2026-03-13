@@ -1,0 +1,6 @@
+---
+# MEV-Boost role defaults
+mev_boost_config_path: /etc/mev-boost
+mev_boost_binary_path: /usr/local/bin/mev-boost
+# Override to use configs from repo: "{{ playbook_dir }}/../configs/mev-boost/timing-games.yaml"
+mev_boost_timing_games_src: ""  # blank = use role files/timing-games.yaml

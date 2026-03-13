@@ -1,0 +1,17 @@
+# Group variables for nodes - copy to nodes.yml and adjust:
+#   cp ansible/group_vars/nodes.yml.example ansible/group_vars/nodes.yml
+
+# MEV-Boost role
+mev_boost_config_path: /etc/mev-boost
+# Path to MEV-Boost config directory in repo (for reference)
+# mev_boost_config_repo: /data/blockchain/nodes/configs/mev-boost
+mev_boost_binary_path: /usr/local/bin/mev-boost
+# Override to use configs from repo instead of role files:
+# mev_boost_timing_games_src: "{{ playbook_dir }}/../configs/mev-boost/timing-games.yaml"
+# Set to false to skip binary check (e.g. for dry runs without mev-boost installed):
+# mev_boost_require_binary: false
+
+# Monitoring role
+monitoring_rules_path: /etc/prometheus/rules
+# Source of monitoring rules (relative to playbook_dir when running from repo root)
+monitoring_rules_src: "{{ playbook_dir }}/../configs/monitoring/rules"

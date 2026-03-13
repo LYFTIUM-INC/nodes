@@ -35,7 +35,7 @@ ExecStart=/usr/bin/geth \
     --ws.origins=* \
     --authrpc.addr=127.0.0.1 \
     --authrpc.port=8554 \
-    --authrpc.vhosts=localhost,127.0.1 \
+    --authrpc.vhosts=localhost,127.0.0.1 \
     --port=30311 \
     --discovery.port=30311 \
     --metrics \

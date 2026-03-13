@@ -19,7 +19,7 @@ pretty = true
 
 # Platform-specific
 python_version = 3.13
-platform = linux
+platform = "linux"
 
 # Exclude directories that don't need type checking
 exclude = [

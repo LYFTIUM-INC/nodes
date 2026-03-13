@@ -1,0 +1,93 @@
+# Blockchain Failover Configuration
+# Implements circuit breaker patterns and backup endpoint routing
+
+circuit_breaker:
+  failure_threshold: 5
+  recovery_timeout: 30
+  half_open_requests: 3
+  health_check_interval: 10
+  timeout: 5
+  unhealthy_threshold: 3
+
+# Primary endpoints with backup configurations
+endpoints:
+  ethereum:
+    primary:
+      url: "http://localhost:8545"
+      weight: 100
+      health_check: "/health"
+    backups:
+      - url: "https://eth-mainnet.public.blastapi.io"
+        weight: 80
+        timeout: 10
+      - url: "https://rpc.ankr.com/eth"
+        weight: 70
+        timeout: 10
+      - url: "https://ethereum.publicnode.com"
+        weight: 60
+        timeout: 10
+
+  arbitrum:
+    primary:
+      url: "http://localhost:8549"
+      weight: 100
+      health_check: "/health"
+    backups:
+      - url: "https://arb1.arbitrum.io/rpc"
+        weight: 80
+        timeout: 10
+      - url: "https://arbitrum-one.public.blastapi.io"
+        weight: 70
+        timeout: 10
+
+  optimism:
+    primary:
+      url: "http://localhost:8550"
+      weight: 100
+      health_check: "/health"
+    backups:
+      - url: "https://mainnet.optimism.io"
+        weight: 80
+        timeout: 10
+      - url: "https://optimism.publicnode.com"
+        weight: 70
+        timeout: 10
+
+  base:
+    primary:
+      url: "http://localhost:8547"
+      weight: 100
+      health_check: "/health"
+    backups:
+      - url: "https://mainnet.base.org"
+        weight: 80
+        timeout: 10
+      - url: "https://base.publicnode.com"
+        weight: 70
+        timeout: 10
+
+  bsc:
+    primary:
+      url: "http://localhost:8555"
+      weight: 100
+      health_check: "/health"
+    backups:
+      - url: "https://bsc-dataseed.binance.org"
+        weight: 80
+        timeout: 10
+      - url: "https://bsc-dataseed1.defibit.io"
+        weight: 70
+        timeout: 10
+
+  solana:
+    primary:
+      url: "http://localhost:8899"
+      weight: 100
+      health_check: "/health"
+    backups:
+      - url: "https://api.mainnet-beta.solana.com"
+        weight: 80
+        timeout: 10
+      - url: "https://solana-api.projectserum.com"
+        weight: 70
+        timeout: 10

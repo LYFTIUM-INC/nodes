@@ -6,6 +6,7 @@ rule_files:
   - "/etc/prometheus/rules/*.yml"
 
 scrape_configs:
+  # METRICS PORTS (MEV_MONITORING_OBSERVABILITY_2026.md): MEV-Boost 18651, Erigon 6062, Reth 6063, Geth 6061, Lighthouse 5054, Node Exporter 9100
   # MEV-Boost metrics (systemd production)
   # Per MEV-Boost docs: -metrics enables Prometheus metrics; -metrics-addr defaults to localhost:18551.
   # When API uses --addr 127.0.0.1:18551, metrics may use separate port via -metrics-addr 127.0.0.1:18651.
@@ -49,16 +50,52 @@ scrape_configs:
     metrics_path: /metrics
     scheme: http
 
-  # Node Exporter for system metrics
+  # Node Exporter for system metrics (MEV_MONITORING_OBSERVABILITY_2026.md §1.4)
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['localhost:9100']
+      - targets: ['127.0.0.1:9100']
     scrape_interval: 10s
+    metrics_path: /metrics
+    scheme: http
 
-  # Ethereum Node metrics
+  # Optional: systemd_exporter for ServiceRestartLoop alert (systemd_service_starts_5m)
+  # Install with: go install github.com/prometheus-community/systemd_exporter@latest
+  # Or use systemd_exporter package
+  - job_name: 'systemd-exporter'
+    static_configs:
+      - targets: ['127.0.0.1:9558']
+    scrape_interval: 10s
+    metrics_path: /metrics
+    scheme: http
+
+  # Reth execution client metrics (configs/systemd/reth.service uses --metrics.port 6063)
+  - job_name: 'reth'
+    static_configs:
+      - targets: ['127.0.0.1:6063']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    scheme: http
+
+  # Lighthouse beacon metrics (start-lighthouse-beacon.sh METRICS_PORT=5054)
+  - job_name: 'lighthouse-beacon'
+    static_configs:
+      - targets: ['127.0.0.1:5054']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    scheme: http
+
+  # Erigon metrics (configs/systemd/erigon.service uses --metrics.port 6062)
+  - job_name: 'erigon'
+    static_configs:
+      - targets: ['127.0.0.1:6062']
+    scrape_interval: 5s
+    metrics_path: /metrics
+    scheme: http
+
+  # Ethereum Node metrics (Geth - configs/systemd/geth.service uses --metrics.port 6061)
   - job_name: 'ethereum-node'
     static_configs:
-      - targets: ['localhost:6060']
+      - targets: ['127.0.0.1:6061']
     scrape_interval: 5s
     metrics_path: /debug/metrics/prometheus
     scheme: http

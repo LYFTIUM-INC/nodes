@@ -1,0 +1,29 @@
+---
+# MEV-Boost role - minimal tasks
+- name: Ensure MEV-Boost config directory exists
+  ansible.builtin.file:
+    path: "{{ mev_boost_config_path }}"
+    state: directory
+    mode: "0755"
+
+# Use role files/timing-games.yaml by default; override with mev_boost_timing_games_src if set
+- name: Copy timing-games.yaml config
+  ansible.builtin.copy:
+    src: "{{ mev_boost_timing_games_src | default('timing-games.yaml', true) }}"
+    dest: "{{ mev_boost_config_path }}/timing-games.yaml"
+    mode: "0644"
+
+- name: Ensure MEV-Boost binary exists
+  ansible.builtin.stat:
+    path: "{{ mev_boost_binary_path }}"
+  register: mev_boost_binary
+
+- name: MEV-Boost binary present
+  ansible.builtin.debug:
+    msg: "MEV-Boost binary found at {{ mev_boost_binary_path }}"
+  when: (mev_boost_require_binary | default(true) | bool) and mev_boost_binary.stat.exists
+
+- name: MEV-Boost binary missing
+  ansible.builtin.fail:
+    msg: "MEV-Boost binary not found at {{ mev_boost_binary_path }}. Install it or set mev_boost_require_binary: false."
+  when: (mev_boost_require_binary | default(true) | bool) and not mev_boost_binary.stat.exists

@@ -1,0 +1,154 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: "blockchain-infrastructure"
+    environment: "production"
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 127.0.0.1:9095
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Node Exporter for system metrics
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["127.0.0.1:9100"]
+
+  # Geth Ethereum node metrics
+  - job_name: "geth-mainnet"
+    static_configs:
+      - targets: ["host.docker.internal:6060"]
+    metrics_path: /debug/metrics/prometheus
+    scrape_interval: 10s
+
+  # Optimism Geth metrics
+  - job_name: "geth-optimism"
+    static_configs:
+      - targets: ["host.docker.internal:6062"]
+    metrics_path: /debug/metrics/prometheus
+    scrape_interval: 10s
+
+  # Erigon metrics (if available)
+  - job_name: "erigon"
+    static_configs:
+      - targets: ["host.docker.internal:9091"]
+    scrape_interval: 10s
+
+  # Lighthouse Beacon Chain metrics
+  - job_name: "lighthouse-beacon"
+    static_configs:
+      - targets: ["host.docker.internal:5052"]
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Lighthouse Validator metrics
+  - job_name: "lighthouse-validator"
+    static_configs:
+      - targets: ["host.docker.internal:5065"]
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Avalanche node metrics (if available)
+  - job_name: "avalanche"
+    static_configs:
+      - targets: ["host.docker.internal:9650"]
+    metrics_path: /ext/metrics
+    scrape_interval: 15s
+
+  # MEV-Boost metrics (if available)
+  - job_name: "mev-boost"
+    static_configs:
+      - targets: ["host.docker.internal:18551"]
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # Custom blockchain health monitor
+  - job_name: "blockchain-health"
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # Container metrics
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  # PostgreSQL metrics
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  # Ethereum nodes
+  - job_name: "ethereum"
+    static_configs:
+      - targets: ["host.docker.internal:8545"]
+    metrics_path: "/metrics"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: chain
+        replacement: "ethereum"
+
+  # BSC nodes
+  - job_name: "bsc"
+    static_configs:
+      - targets: ["host.docker.internal:8546"]
+    metrics_path: "/metrics"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: chain
+        replacement: "bsc"
+
+  # Polygon nodes
+  - job_name: "polygon"
+    static_configs:
+      - targets: ["host.docker.internal:8547"]
+    metrics_path: "/metrics"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: chain
+        replacement: "polygon"
+
+  # Arbitrum nodes
+  - job_name: "arbitrum"
+    static_configs:
+      - targets: ["host.docker.internal:8548"]
+    metrics_path: "/metrics"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: chain
+        replacement: "arbitrum"
+
+  # Optimism nodes
+  - job_name: "optimism"
+    static_configs:
+      - targets: ["host.docker.internal:8549"]
+    metrics_path: "/metrics"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: chain
+        replacement: "optimism"
+
+  # Base nodes
+  - job_name: "base"
+    static_configs:
+      - targets: ["host.docker.internal:8550"]
+    metrics_path: "/metrics"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: chain
+        replacement: "base"

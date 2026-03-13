@@ -65,6 +65,7 @@ exec "${LIGHTHOUSE_BIN}" beacon_node \
     --datadir "${DATA_DIR}" \
     --execution-endpoint "${ERIGON_ENDPOINT}" \
     --execution-jwt="${JWT_SECRET}" \
+    --execution-timeout-multiplier 3 \
     --port "${P2P_PORT}" \
     --quic-port "${QUIC_PORT}" \
     --enr-address "${EXTERNAL_IP}" \
@@ -78,9 +79,10 @@ exec "${LIGHTHOUSE_BIN}" beacon_node \
     --metrics-address 127.0.0.1 \
     --metrics-port "${METRICS_PORT}" \
     --genesis-backfill \
-    $(printf -- '--checkpoint-sync-url %s ' "${CHECKPOINT_URLS[@]}") \
+    --checkpoint-sync-url "${CHECKPOINT_URLS[0]}" \
     --checkpoint-sync-url-timeout 300 \
     --disable-backfill-rate-limiting \
+    --historic-state-cache-size 4 \
     --graffiti "${GRAFFITI}" \
     --auto-compact-db true \
     --builder "${BUILDER_ENDPOINT}" \

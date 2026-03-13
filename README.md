@@ -3,6 +3,16 @@
 > **Production-Grade MEV Infrastructure** - Blockchain node operations, MEV extraction, and real-time analytics platform.
 
 [![Status](https://img.shields.io/badge/status-operational-green)](https://github.com/LYFTIUM-INC/nodes)
+
+## Quick Links
+
+- [Quick Reference](docs/QUICK_REFERENCE.md)
+- [Research Implementation Status](docs/checklists/RESEARCH_IMPLEMENTATION_STATUS.md)
+- [Protocol Calendar](docs/operations/PROTOCOL_CALENDAR.md)
+- [Reth Migration Plan](docs/guides/RETH_MIGRATION_PLAN.md)
+- [Zero Downtime Upgrade](docs/runbooks/ZERO_DOWNTIME_UPGRADE.md)
+- [Infrastructure Topology](docs/architecture/INFRASTRUCTURE_TOPOLOGY.md)
+- [AlertManager Setup](docs/guides/ALERTMANAGER_SETUP.md)
 [![Infrastructure](https://img.shields.io/badge/infrastructure-ethereum-blue)](https://ethereum.org/)
 [![MEV](https://img.shields.io/badge/MEV-boost-purple)](https://github.com/flashbots/mev-boost)
 [![Last Updated](https://img.shields.io/badge/last%20updated-2026--03--09-blue)]()
@@ -254,6 +264,10 @@ Erigon v3.2.0 expects v1.1 snapshot format but has v1.0 format files.
 Both execution and consensus clients require matching JWT secrets.
 
 **Solution**: Ensure `/data/blockchain/storage/jwt-common/jwt-secret.hex` exists and is referenced in both configs.
+
+## Research Implementation & Best Practices
+
+See **[Research Implementation Status](docs/checklists/RESEARCH_IMPLEMENTATION_STATUS.md)** for consolidated status of research recommendations (MEV Infrastructure, Ethereum Node Operations, MEV Monitoring, MEV Security). Includes Quick Verification script for MEV-Boost metrics, Prometheus config validity, JWT, and builder fallback.
 
 ## Security Best Practices
 

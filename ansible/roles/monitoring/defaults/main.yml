@@ -1,0 +1,4 @@
+---
+# Monitoring role defaults
+monitoring_rules_path: /etc/prometheus/rules
+# monitoring_rules_src set by playbook: "{{ playbook_dir }}/../configs/monitoring/rules"

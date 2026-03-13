@@ -1,0 +1,531 @@
+# PRODUCTION BLOCKCHAIN INFRASTRUCTURE
+# CI/CD Best Practices Implementation
+# Version: 2.0
+# Environment: Production
+
+version: '3.8'
+
+# ============================================================================
+# NETWORKS - Production-grade networking with proper isolation
+# ============================================================================
+networks:
+  blockchain_frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  blockchain_backend:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+  mev_internal:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.22.0.0/24
+
+# ============================================================================
+# VOLUMES - Persistent storage with proper backup strategies
+# ============================================================================
+volumes:
+  ethereum_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/data/blockchain/storage/ethereum'
+  base_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/data/blockchain/storage/base'
+  arbitrum_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/data/blockchain/storage/arbitrum'
+  optimism_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/data/blockchain/storage/optimism'
+  polygon_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/data/blockchain/storage/polygon'
+  avalanche_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/data/blockchain/storage/avalanche'
+  bsc_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/data/blockchain/storage/bsc'
+  solana_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/data/blockchain/storage/solana'
+
+# ============================================================================
+# SERVICES - Production blockchain nodes with CI/CD best practices
+# ============================================================================
+services:
+
+  # ==========================================================================
+  # ETHEREUM MAINNET - Primary L1 (Erigon)
+  # ==========================================================================
+  ethereum:
+    build:
+      context: ../../ethereum/erigon/source
+      dockerfile: Dockerfile
+      target: production
+    container_name: blockchain_ethereum_prod
+    hostname: ethereum-mainnet
+    environment:
+      - ERIGON_DATADIR=/var/lib/erigon
+      - ERIGON_NETWORK=mainnet
+      - ERIGON_HTTP_API=eth,net,web3,debug,trace,txpool
+      - ERIGON_METRICS=true
+      - ERIGON_PPROF=true
+    ports:
+      - "127.0.0.1:8545:8545"  # HTTP RPC (localhost only)
+      - "127.0.0.1:8546:8546"  # WebSocket (localhost only)
+      - "30303:30303"          # P2P
+      - "127.0.0.1:6060:6060"  # Metrics (localhost only)
+    volumes:
+      - ethereum_data:/var/lib/erigon
+      - ../../ethereum/erigon/config:/etc/erigon:ro
+    networks:
+      - blockchain_frontend
+      - blockchain_backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    mem_limit: 12g
+    cpus: "4.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    labels:
+      - "com.blockchain.service=ethereum"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=l1"
+
+  # ==========================================================================
+  # BASE L2 - Using existing Dockerfile
+  # ==========================================================================
+  base:
+    build:
+      context: ../../base/source
+      dockerfile: geth/Dockerfile
+      target: production
+    container_name: blockchain_base_prod
+    hostname: base-l2
+    environment:
+      - OP_NODE_L1_ETH_RPC=http://ethereum:8545
+      - OP_NODE_L1_BEACON=https://ethereum-beacon-api.publicnode.com
+      - OP_NODE_NETWORK=base-mainnet
+      - OP_NODE_ROLLUP_CONFIG=/etc/base/rollup.json
+    ports:
+      - "127.0.0.1:8547:8545"  # HTTP RPC (localhost only)
+      - "127.0.0.1:8548:8546"  # WebSocket (localhost only)
+    volumes:
+      - base_data:/var/lib/base
+      - ../../base/config:/etc/base:ro
+    networks:
+      - blockchain_backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    restart: unless-stopped
+    mem_limit: 8g
+    cpus: "2.0"
+    depends_on:
+      ethereum:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    labels:
+      - "com.blockchain.service=base"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=l2"
+
+  # ==========================================================================
+  # ARBITRUM ONE - Using existing Dockerfile
+  # ==========================================================================
+  arbitrum:
+    build:
+      context: ../../arbitrum/source
+      dockerfile: Dockerfile
+      target: production
+    container_name: blockchain_arbitrum_prod
+    hostname: arbitrum-one
+    environment:
+      - ARBITRUM_L1_URL=http://ethereum:8545
+      - ARBITRUM_L1_BEACON=https://ethereum-beacon-api.publicnode.com
+      - ARBITRUM_CHAIN_ID=42161
+    ports:
+      - "127.0.0.1:8549:8549"  # HTTP RPC (localhost only)
+      - "127.0.0.1:8550:8547"  # WebSocket (localhost only)
+    volumes:
+      - arbitrum_data:/var/lib/arbitrum
+      - ../../arbitrum/config:/etc/arbitrum:ro
+    networks:
+      - blockchain_backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8549"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    restart: unless-stopped
+    mem_limit: 8g
+    cpus: "2.0"
+    depends_on:
+      ethereum:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    labels:
+      - "com.blockchain.service=arbitrum"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=l2"
+
+  # ==========================================================================
+  # OPTIMISM - Using existing configuration
+  # ==========================================================================
+  optimism:
+    build:
+      context: ../../optimism/simple
+      dockerfile: Dockerfile
+      target: production
+    container_name: blockchain_optimism_prod
+    hostname: optimism-mainnet
+    environment:
+      - OP_NODE__RPC_ENDPOINT=http://ethereum:8545
+      - OP_NODE__L1_BEACON=https://ethereum-beacon-api.publicnode.com
+      - OP_NODE__RPC_TYPE=erigon
+      - HEALTHCHECK__REFERENCE_RPC_PROVIDER=https://mainnet.optimism.io
+    ports:
+      - "127.0.0.1:8551:8545"  # HTTP RPC (localhost only)
+      - "127.0.0.1:8552:8546"  # WebSocket (localhost only)
+    volumes:
+      - optimism_data:/var/lib/optimism
+      - ../../optimism/simple/.env:/app/.env:ro
+    networks:
+      - blockchain_backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    restart: unless-stopped
+    mem_limit: 6g
+    cpus: "1.5"
+    depends_on:
+      ethereum:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    labels:
+      - "com.blockchain.service=optimism"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=l2"
+
+  # ==========================================================================
+  # POLYGON - Using existing Dockerfile
+  # ==========================================================================
+  polygon:
+    build:
+      context: ../../polygon/source
+      dockerfile: Dockerfile
+      target: production
+    container_name: blockchain_polygon_prod
+    hostname: polygon-mainnet
+    environment:
+      - POLYGON_NETWORK_ID=137
+      - POLYGON_SYNC_MODE=snap
+      - POLYGON_METRICS=true
+    ports:
+      - "127.0.0.1:8553:8545"  # HTTP RPC (localhost only)
+      - "127.0.0.1:8554:8546"  # WebSocket (localhost only)
+      - "30304:30303"          # P2P
+    volumes:
+      - polygon_data:/data/polygon
+      - ../../polygon/config/polygon.toml:/etc/polygon/polygon.toml:ro
+    networks:
+      - blockchain_backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    restart: unless-stopped
+    mem_limit: 6g
+    cpus: "1.5"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    labels:
+      - "com.blockchain.service=polygon"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=sidechain"
+
+  # ==========================================================================
+  # AVALANCHE - Using existing Dockerfile
+  # ==========================================================================
+  avalanche:
+    build:
+      context: ../../avalanche/source
+      dockerfile: Dockerfile
+      target: production
+    container_name: blockchain_avalanche_prod
+    hostname: avalanche-mainnet
+    environment:
+      - AVALANCHE_NETWORK_ID=mainnet
+      - AVALANCHE_HTTP_HOST=0.0.0.0
+      - AVALANCHE_HTTP_PORT=9650
+    ports:
+      - "127.0.0.1:9650:9650"  # HTTP API (localhost only)
+      - "9651:9651"            # Staking P2P
+    volumes:
+      - avalanche_data:/root/.avalanchego
+      - ../../avalanche/config/avalanche.json:/root/.avalanchego/config.json:ro
+    networks:
+      - blockchain_backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9650/ext/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+    restart: unless-stopped
+    mem_limit: 4g
+    cpus: "1.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    labels:
+      - "com.blockchain.service=avalanche"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=l1"
+
+  # ==========================================================================
+  # BSC - Using existing Dockerfile
+  # ==========================================================================
+  bsc:
+    build:
+      context: ../../bsc/source
+      dockerfile: Dockerfile
+      target: production
+    container_name: blockchain_bsc_prod
+    hostname: bsc-mainnet
+    environment:
+      - BSC_NETWORK_ID=56
+      - BSC_SYNC_MODE=snap
+      - BSC_METRICS=true
+    ports:
+      - "127.0.0.1:8555:8545"  # HTTP RPC (localhost only)
+      - "127.0.0.1:8556:8546"  # WebSocket (localhost only)
+      - "30305:30303"          # P2P
+    volumes:
+      - bsc_data:/data/bsc
+      - ../../bsc/config/bsc.toml:/etc/bsc/bsc.toml:ro
+    networks:
+      - blockchain_backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    restart: unless-stopped
+    mem_limit: 6g
+    cpus: "1.5"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    labels:
+      - "com.blockchain.service=bsc"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=l1"
+
+  # ==========================================================================
+  # SOLANA - Using existing Dockerfile
+  # ==========================================================================
+  solana:
+    build:
+      context: ../../solana/source
+      dockerfile: sdk/docker-solana/Dockerfile
+      target: production
+    container_name: blockchain_solana_prod
+    hostname: solana-mainnet
+    environment:
+      - SOLANA_NETWORK=mainnet-beta
+      - SOLANA_METRICS=true
+    ports:
+      - "127.0.0.1:8899:8899"  # RPC (localhost only)
+      - "8001:8001"            # Gossip
+    volumes:
+      - solana_data:/data/solana
+      - ../../solana/config:/etc/solana:ro
+    networks:
+      - blockchain_backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8899"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
+    restart: unless-stopped
+    mem_limit: 8g
+    cpus: "2.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+    labels:
+      - "com.blockchain.service=solana"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=l1"
+
+  # ==========================================================================
+  # MEV-BOOST - Using existing Dockerfile
+  # ==========================================================================
+  mev-boost:
+    build:
+      context: ../../mev-boost/source
+      dockerfile: Dockerfile
+      target: production
+    container_name: blockchain_mev_boost_prod
+    hostname: mev-boost
+    environment:
+      - MEV_BOOST_NETWORK=mainnet
+      - MEV_BOOST_ADDR=0.0.0.0:18550
+      - MEV_BOOST_RELAY_CHECK=true
+    ports:
+      - "127.0.0.1:18550:18550"  # MEV-Boost API (localhost only)
+    networks:
+      - mev_internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18550"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: "0.5"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    labels:
+      - "com.blockchain.service=mev-boost"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=mev"
+
+  # ==========================================================================
+  # MONITORING - Production monitoring stack
+  # ==========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: blockchain_prometheus_prod
+    hostname: prometheus
+    ports:
+      - "127.0.0.1:9090:9090"  # Prometheus UI (localhost only)
+    volumes:
+      - ../../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - blockchain_backend
+    restart: unless-stopped
+    mem_limit: 4g
+    cpus: "1.0"
+    labels:
+      - "com.blockchain.service=prometheus"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=monitoring"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: blockchain_grafana_prod
+    hostname: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=blockchain_prod_2024!
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    ports:
+      - "127.0.0.1:3000:3000"  # Grafana UI (localhost only)
+    volumes:
+      - ../../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - blockchain_backend
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: "0.5"
+    depends_on:
+      - prometheus
+    labels:
+      - "com.blockchain.service=grafana"
+      - "com.blockchain.environment=production"
+      - "com.blockchain.type=monitoring"
+
+# ============================================================================
+# ADDITIONAL VOLUMES
+# ============================================================================
+volumes:
+  prometheus_data:
+  grafana_data:

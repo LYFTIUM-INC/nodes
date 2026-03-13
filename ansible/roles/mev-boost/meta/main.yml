@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: LYFTIUM
+  description: MEV-Boost configuration and deployment for MEV Lab
+  license: Proprietary
+
+  min_ansible_version: "2.14"
+
+  platforms: []
+
+dependencies: []

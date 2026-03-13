@@ -1,0 +1,164 @@
+# Log Rotation Configuration for Blockchain Nodes
+
+logs:
+  ethereum:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/ethereum.log"
+    max_size_mb: 500
+    max_age_days: 7
+    keep_files: 10
+    compress: true
+    restart_service: "erigon"
+    
+  arbitrum:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/arbitrum.log"
+    max_size_mb: 300
+    max_age_days: 7
+    keep_files: 8
+    compress: true
+    restart_service: "arbitrum-node"
+    
+  polygon:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/polygon.log"
+    max_size_mb: 400
+    max_age_days: 7
+    keep_files: 8
+    compress: true
+    restart_service: "polygon-bor"
+    
+  polygon_heimdall:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/polygon-heimdall.log"
+    max_size_mb: 200
+    max_age_days: 7
+    keep_files: 5
+    compress: true
+    restart_service: "polygon-heimdall"
+    
+  optimism:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/optimism.log"
+    max_size_mb: 300
+    max_age_days: 7
+    keep_files: 8
+    compress: true
+    restart_service: "optimism-node"
+    
+  base:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/base.log"
+    max_size_mb: 300
+    max_age_days: 7
+    keep_files: 8
+    compress: true
+    restart_service: "base-node"
+    
+  bsc:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/bsc.log"
+    max_size_mb: 400
+    max_age_days: 7
+    keep_files: 8
+    compress: true
+    restart_service: "bsc-node"
+    
+  avalanche:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/avalanche.log"
+    max_size_mb: 300
+    max_age_days: 7
+    keep_files: 8
+    compress: true
+    restart_service: "avalanche-node"
+    
+  solana:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/solana.log"
+    max_size_mb: 600
+    max_age_days: 5
+    keep_files: 12
+    compress: true
+    restart_service: "solana-dev"
+    
+  # MEV-related logs
+  mev_boost:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/mev-boost.log"
+    max_size_mb: 200
+    max_age_days: 14
+    keep_files: 15
+    compress: true
+    restart_service: "mev-boost"
+    
+  mev_backend:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/mev-backend.log"
+    max_size_mb: 300
+    max_age_days: 14
+    keep_files: 20
+    compress: true
+    
+  # System logs
+  health_monitor:
+    enabled: true
+    path: "/data/blockchain/nodes/maintenance/logs/health_check.log"
+    max_size_mb: 100
+    max_age_days: 30
+    keep_files: 12
+    compress: true
+    
+  performance_monitor:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/performance_report.log"
+    max_size_mb: 150
+    max_age_days: 21
+    keep_files: 15
+    compress: true
+    
+  security_monitor:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/security-monitor.log"
+    max_size_mb: 100
+    max_age_days: 90
+    keep_files: 30
+    compress: true
+    
+  alert_system:
+    enabled: true
+    path: "/data/blockchain/nodes/logs/alerts.log"
+    max_size_mb: 50
+    max_age_days: 60
+    keep_files: 20
+    compress: true
+
+# Global settings
+global:
+  # Emergency cleanup thresholds
+  emergency_cleanup:
+    trigger_free_space_gb: 5
+    target_free_space_gb: 15
+    
+  # Compression settings
+  compression:
+    algorithm: "gzip"
+    level: 6
+    parallel_jobs: 2
+    
+  # Database cleanup
+  database_retention:
+    log_metrics_days: 30
+    disk_usage_days: 90
+    
+  # Scheduling
+  rotation_schedule:
+    # Run every 6 hours
+    interval_hours: 6
+    
+  # Archive settings
+  archive:
+    enabled: true
+    path: "/data/blockchain/nodes/backup/log_archives"
+    retention_days: 90
+    compress_archives: true

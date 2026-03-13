@@ -1,0 +1,10 @@
+# Ansible inventory example for node management
+# Copy to inventory and adjust for your environment:
+#   cp ansible/inventory.example ansible/inventory
+
+[nodes]
+# Local deployment (run playbook on this machine)
+localhost ansible_connection=local
+
+# Or example remote host:
+# node1 ansible_host=192.168.1.10 ansible_user=ubuntu

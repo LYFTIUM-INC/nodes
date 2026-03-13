@@ -1,0 +1,9 @@
+---
+- hosts: nodes
+  vars:
+    monitoring_rules_src: "{{ playbook_dir }}/../configs/monitoring/rules"
+  roles:
+    - role: mev-boost
+      tags: mev-boost
+    - role: monitoring
+      tags: monitoring

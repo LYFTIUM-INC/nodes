@@ -1,0 +1,462 @@
+# Automated Restart Configuration for Blockchain Nodes
+
+# Global monitoring settings
+monitoring:
+  enabled: true
+  check_interval_seconds: 60
+  
+# Restart throttling settings
+throttling:
+  max_restarts_per_hour: 3
+  min_restart_interval_minutes: 15
+  max_consecutive_failures: 5
+  exponential_backoff: true
+  
+# Pre-restart actions
+pre_restart:
+  create_backup: false  # Set to true if backup before restart is needed
+  graceful_shutdown: true
+  wait_for_pending_operations: true
+  notification_delay_seconds: 30
+
+# Chain-specific configurations
+chains:
+  ethereum:
+    enabled: true
+    restart_method: "systemd"  # systemd, docker, script
+    service_name: "erigon"
+    container_name: "ethereum-node"
+    rpc_url: "http://localhost:8545"
+    
+    restart_conditions:
+      health_check_enabled: true
+      memory_check_enabled: true
+      cpu_check_enabled: true
+      sync_check_enabled: true
+      rpc_check_enabled: true
+      peer_check_enabled: true
+      
+      # Thresholds
+      memory_threshold_percent: 90
+      process_memory_threshold_mb: 16384  # 16GB
+      cpu_threshold_percent: 95
+      cpu_sustained_minutes: 10
+      max_blocks_behind: 50
+      max_rpc_latency_ms: 10000
+      min_peers: 5
+      
+    # Advanced restart conditions
+    advanced_conditions:
+      sync_stall_threshold_minutes: 30
+      error_rate_threshold_per_minute: 100
+      disk_space_threshold_percent: 95
+      
+  arbitrum:
+    enabled: true
+    restart_method: "systemd"
+    service_name: "arbitrum-node"
+    container_name: "arbitrum-node"
+    rpc_url: "http://localhost:8547"
+    
+    restart_conditions:
+      health_check_enabled: true
+      memory_check_enabled: true
+      cpu_check_enabled: true
+      sync_check_enabled: true
+      rpc_check_enabled: true
+      peer_check_enabled: true
+      
+      memory_threshold_percent: 85
+      process_memory_threshold_mb: 12288  # 12GB
+      cpu_threshold_percent: 90
+      max_blocks_behind: 100
+      max_rpc_latency_ms: 5000
+      min_peers: 3
+      
+  polygon:
+    enabled: true
+    restart_method: "systemd"
+    service_name: "polygon-bor"
+    container_name: "polygon-bor"
+    rpc_url: "http://localhost:8548"
+    
+    restart_conditions:
+      health_check_enabled: true
+      memory_check_enabled: true
+      cpu_check_enabled: true
+      sync_check_enabled: true
+      rpc_check_enabled: true
+      peer_check_enabled: true
+      
+      memory_threshold_percent: 85
+      process_memory_threshold_mb: 10240  # 10GB
+      cpu_threshold_percent: 90
+      max_blocks_behind: 200
+      max_rpc_latency_ms: 5000
+      min_peers: 5
+      
+  optimism:
+    enabled: true
+    restart_method: "systemd"
+    service_name: "optimism-node"
+    container_name: "optimism-node"
+    rpc_url: "http://localhost:8549"
+    
+    restart_conditions:
+      health_check_enabled: true
+      memory_check_enabled: true
+      cpu_check_enabled: true
+      sync_check_enabled: true
+      rpc_check_enabled: true
+      peer_check_enabled: true
+      
+      memory_threshold_percent: 80
+      process_memory_threshold_mb: 8192  # 8GB
+      cpu_threshold_percent: 90
+      max_blocks_behind: 100
+      max_rpc_latency_ms: 3000
+      min_peers: 3
+      
+  base:
+    enabled: true
+    restart_method: "systemd"
+    service_name: "base-node"
+    container_name: "base-node"
+    rpc_url: "http://localhost:8550"
+    
+    restart_conditions:
+      health_check_enabled: true
+      memory_check_enabled: true
+      cpu_check_enabled: true
+      sync_check_enabled: true
+      rpc_check_enabled: true
+      peer_check_enabled: true
+      
+      memory_threshold_percent: 80
+      process_memory_threshold_mb: 8192  # 8GB
+      cpu_threshold_percent: 90
+      max_blocks_behind: 100
+      max_rpc_latency_ms: 3000
+      min_peers: 3
+      
+  bsc:
+    enabled: true
+    restart_method: "systemd"
+    service_name: "bsc-node"
+    container_name: "bsc-node"
+    rpc_url: "http://localhost:8551"
+    
+    restart_conditions:
+      health_check_enabled: true
+      memory_check_enabled: true
+      cpu_check_enabled: true
+      sync_check_enabled: true
+      rpc_check_enabled: true
+      peer_check_enabled: true
+      
+      memory_threshold_percent: 85
+      process_memory_threshold_mb: 12288  # 12GB
+      cpu_threshold_percent: 90
+      max_blocks_behind: 150
+      max_rpc_latency_ms: 5000
+      min_peers: 5
+      
+  avalanche:
+    enabled: true
+    restart_method: "systemd"
+    service_name: "avalanche-node"
+    container_name: "avalanche-node"
+    rpc_url: "http://localhost:9650/ext/bc/C/rpc"
+    
+    restart_conditions:
+      health_check_enabled: true
+      memory_check_enabled: true
+      cpu_check_enabled: true
+      sync_check_enabled: true
+      rpc_check_enabled: true
+      peer_check_enabled: true
+      
+      memory_threshold_percent: 80
+      process_memory_threshold_mb: 8192  # 8GB
+      cpu_threshold_percent: 90
+      max_blocks_behind: 100
+      max_rpc_latency_ms: 4000
+      min_peers: 4
+      
+  solana:
+    enabled: true
+    restart_method: "systemd"
+    service_name: "solana-dev"
+    rpc_url: "http://localhost:8899"
+    
+    restart_conditions:
+      health_check_enabled: true
+      memory_check_enabled: true
+      cpu_check_enabled: true
+      sync_check_enabled: false  # Solana sync check is different
+      rpc_check_enabled: true
+      peer_check_enabled: true
+      
+      memory_threshold_percent: 90
+      process_memory_threshold_mb: 20480  # 20GB
+      cpu_threshold_percent: 95
+      max_rpc_latency_ms: 2000
+      min_peers: 10
+
+# MEV-specific restart conditions
+mev_conditions:
+  enabled: true
+  
+  mev_boost:
+    enabled: true
+    service_name: "mev-boost"
+    rpc_url: "http://localhost:18550"
+    
+    restart_conditions:
+      relay_connectivity_check: true
+      bid_success_rate_threshold: 80  # %
+      latency_threshold_ms: 200
+      error_rate_threshold: 10  # errors per minute
+      
+  private_mempool:
+    enabled: true
+    restart_conditions:
+      transaction_processing_rate_threshold: 1000  # tx/sec
+      detection_accuracy_threshold: 95  # %
+      execution_success_rate_threshold: 90  # %
+
+# Notification settings
+notifications:
+  enabled: true
+  
+  # Email notifications
+  email:
+    enabled: false
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    use_tls: true
+    from: "blockchain-alerts@company.com"
+    to:
+      - "devops@company.com"
+      - "blockchain-team@company.com"
+    username: ""
+    password: ""
+    
+  # Webhook notifications (Slack, Discord, etc.)
+  webhook:
+    enabled: false
+    url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    channel: "#blockchain-ops"
+    
+  # SMS notifications (for critical restarts)
+  sms:
+    enabled: false
+    provider: "twilio"
+    account_sid: ""
+    auth_token: ""
+    from_number: ""
+    to_numbers:
+      - "+1234567890"
+
+# Restart strategies
+restart_strategies:
+  # Standard restart
+  standard:
+    description: "Standard graceful restart"
+    steps:
+      - "send_termination_signal"
+      - "wait_for_graceful_shutdown"
+      - "force_kill_if_necessary"
+      - "start_service"
+      - "verify_startup"
+      - "health_check"
+      
+  # Emergency restart (faster, less graceful)
+  emergency:
+    description: "Emergency restart for critical situations"
+    steps:
+      - "force_kill"
+      - "cleanup_resources"
+      - "start_service"
+      - "basic_health_check"
+      
+  # MEV-aware restart (minimize MEV downtime)
+  mev_aware:
+    description: "MEV-aware restart with minimal opportunity loss"
+    steps:
+      - "pause_mev_operations"
+      - "complete_pending_transactions"
+      - "graceful_shutdown"
+      - "quick_start"
+      - "resume_mev_operations"
+      - "verify_mev_functionality"
+
+# Recovery procedures
+recovery:
+  enabled: true
+  
+  # Automatic recovery actions
+  automatic:
+    clear_cache: true
+    reset_peer_connections: true
+    increase_resource_limits: true
+    apply_performance_optimizations: true
+    
+  # Escalation procedures
+  escalation:
+    max_automatic_attempts: 3
+    escalate_to_manual: true
+    escalation_contacts:
+      - "devops-oncall@company.com"
+      - "blockchain-lead@company.com"
+    
+    escalation_conditions:
+      consecutive_failures: 3
+      restart_time_threshold_minutes: 10
+      critical_error_patterns:
+        - "database corruption"
+        - "memory allocation failure"
+        - "network partition"
+
+# Maintenance windows
+maintenance_windows:
+  # Regular maintenance
+  weekly:
+    enabled: true
+    day_of_week: "sunday"
+    start_time: "02:00"
+    end_time: "04:00"
+    timezone: "UTC"
+    allowed_restart_types:
+      - "scheduled_maintenance"
+      - "configuration_change"
+      - "security_update"
+      
+  # Emergency maintenance
+  emergency:
+    enabled: true
+    max_duration_hours: 2
+    approval_required: true
+    notification_advance_minutes: 15
+
+# Performance monitoring during restarts
+performance_monitoring:
+  enabled: true
+  
+  # Metrics to track during restart
+  metrics:
+    - "restart_duration"
+    - "startup_time"
+    - "sync_recovery_time"
+    - "rpc_response_time"
+    - "peer_connection_time"
+    - "memory_usage_post_restart"
+    
+  # Benchmarks
+  benchmarks:
+    max_restart_duration_seconds: 120
+    max_startup_time_seconds: 60
+    max_sync_recovery_time_seconds: 300
+    target_rpc_response_time_ms: 100
+    
+# Logging and auditing
+logging:
+  enabled: true
+  log_level: "INFO"
+  log_file: "/data/blockchain/nodes/maintenance/logs/automated_restarts.log"
+  
+  # Log rotation
+  log_rotation:
+    enabled: true
+    max_size_mb: 100
+    backup_count: 10
+    
+  # Audit logging
+  audit:
+    enabled: true
+    log_all_restart_decisions: true
+    log_performance_metrics: true
+    log_recovery_actions: true
+
+# Integration with external systems
+integrations:
+  # Monitoring systems
+  prometheus:
+    enabled: false
+    metrics_endpoint: "http://localhost:9090"
+    
+  grafana:
+    enabled: false
+    dashboard_url: "http://localhost:3000"
+    
+  # Incident management
+  pagerduty:
+    enabled: false
+    integration_key: ""
+    
+  # Chat notifications
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#blockchain-ops"
+    
+# Advanced features
+advanced:
+  # Machine learning-based restart prediction
+  ml_prediction:
+    enabled: false
+    model_path: "/data/blockchain/nodes/maintenance/models/restart_predictor.pkl"
+    prediction_horizon_hours: 4
+    confidence_threshold: 0.8
+    
+  # Canary restarts (restart one instance first)
+  canary_restarts:
+    enabled: false
+    canary_percentage: 20
+    success_criteria:
+      rpc_response_time_ms: 100
+      error_rate_threshold: 1
+      observation_period_minutes: 10
+      
+  # Blue-green restarts
+  blue_green:
+    enabled: false
+    traffic_switch_delay_seconds: 30
+    health_check_retries: 5
+
+# Testing and validation
+testing:
+  enabled: false
+  
+  # Test restart procedures in staging
+  staging_validation:
+    enabled: false
+    staging_environment: "staging"
+    test_schedule: "0 1 * * 6"  # Weekly on Saturday at 1 AM
+    
+  # Chaos engineering
+  chaos_testing:
+    enabled: false
+    random_restart_probability: 0.001  # 0.1% chance per check
+    exclude_production_hours: true
+
+# Compliance and governance
+compliance:
+  # Change management
+  change_management:
+    enabled: false
+    require_approval_for_automatic_restarts: false
+    approval_workflow_url: ""
+    
+  # Audit requirements
+  audit_requirements:
+    retain_logs_days: 90
+    include_performance_data: true
+    include_decision_rationale: true
+    
+  # SLA monitoring
+  sla_monitoring:
+    enabled: true
+    target_uptime_percentage: 99.9
+    max_downtime_per_restart_seconds: 60
+    monthly_restart_limit: 10

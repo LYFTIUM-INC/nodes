@@ -1,0 +1,133 @@
+# STAGING BLOCKCHAIN INFRASTRUCTURE
+# CI/CD Best Practices Implementation
+# Version: 2.0
+# Environment: Staging
+
+version: '3.8'
+
+# ============================================================================
+# STAGING-SPECIFIC CONFIGURATIONS
+# Reduced resources, testnet focus, faster deployment
+# ============================================================================
+
+networks:
+  blockchain_staging:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  ethereum_staging_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/data/blockchain/staging/ethereum'
+  base_staging_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/data/blockchain/staging/base'
+
+services:
+
+  # ==========================================================================
+  # ETHEREUM SEPOLIA TESTNET - Staging L1
+  # ==========================================================================
+  ethereum-staging:
+    build:
+      context: ../../ethereum/erigon/source
+      dockerfile: Dockerfile
+      target: staging
+    container_name: blockchain_ethereum_staging
+    environment:
+      - ERIGON_DATADIR=/var/lib/erigon
+      - ERIGON_NETWORK=sepolia
+      - ERIGON_HTTP_API=eth,net,web3,debug,trace,txpool
+      - ERIGON_METRICS=true
+    ports:
+      - "127.0.0.1:8545:8545"
+      - "127.0.0.1:8546:8546"
+      - "30303:30303"
+    volumes:
+      - ethereum_staging_data:/var/lib/erigon
+    networks:
+      - blockchain_staging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    mem_limit: 6g
+    cpus: "2.0"
+    labels:
+      - "com.blockchain.service=ethereum"
+      - "com.blockchain.environment=staging"
+      - "com.blockchain.type=l1"
+      - "com.blockchain.network=sepolia"
+
+  # ==========================================================================
+  # BASE SEPOLIA - Staging L2
+  # ==========================================================================
+  base-staging:
+    build:
+      context: ../../base/source
+      dockerfile: geth/Dockerfile
+      target: staging
+    container_name: blockchain_base_staging
+    environment:
+      - OP_NODE_L1_ETH_RPC=http://ethereum-staging:8545
+      - OP_NODE_L1_BEACON=https://ethereum-beacon-api.publicnode.com
+      - OP_NODE_NETWORK=base-sepolia
+    ports:
+      - "127.0.0.1:8547:8545"
+      - "127.0.0.1:8548:8546"
+    volumes:
+      - base_staging_data:/var/lib/base
+    networks:
+      - blockchain_staging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    restart: unless-stopped
+    mem_limit: 4g
+    cpus: "1.0"
+    depends_on:
+      ethereum-staging:
+        condition: service_healthy
+    labels:
+      - "com.blockchain.service=base"
+      - "com.blockchain.environment=staging"
+      - "com.blockchain.type=l2"
+      - "com.blockchain.network=sepolia"
+
+  # ==========================================================================
+  # MONITORING - Lightweight staging monitoring
+  # ==========================================================================
+  prometheus-staging:
+    image: prom/prometheus:latest
+    container_name: blockchain_prometheus_staging
+    ports:
+      - "127.0.0.1:9091:9090"
+    volumes:
+      - ../../monitoring/prometheus-staging.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    networks:
+      - blockchain_staging
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: "0.5"
+    labels:
+      - "com.blockchain.service=prometheus"
+      - "com.blockchain.environment=staging"
+      - "com.blockchain.type=monitoring"

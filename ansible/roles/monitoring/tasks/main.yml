@@ -1,0 +1,15 @@
+---
+# Monitoring role - placeholder tasks
+- name: Ensure Prometheus rules directory exists
+  ansible.builtin.file:
+    path: "{{ monitoring_rules_path }}"
+    state: directory
+    mode: "0755"
+
+# monitoring_rules_src: set in site.yml or group_vars; fallback to configs relative to playbook
+- name: Copy monitoring rules to target
+  ansible.builtin.copy:
+    src: "{{ monitoring_rules_src | default(playbook_dir ~ '/../configs/monitoring/rules', true) }}/"
+    dest: "{{ monitoring_rules_path }}/"
+    mode: "0644"
+    directory_mode: "0755"

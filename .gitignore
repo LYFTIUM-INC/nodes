@@ -25,6 +25,10 @@ secrets/
 .jwt/
 jwt-secret.hex
 jwt-secret-common.hex
+jwt.hex
+**/opnode_p2p_priv.txt
+**/priv_validator_key.json
+**/node_key.json
 *.env
 .env.local
 .env.*.local
@@ -50,6 +54,12 @@ temp/
 *.sqlite
 *.sqlite3
 *.mdb
+*.ldb
+*.sst
+*.wal
+*.CURRENT
+*.LOG
+*.MANIFEST
 clickhouse/data/
 clickhouse/logs/
 
@@ -139,6 +149,7 @@ lerna-debug.log*
 dist/
 dist-ssr/
 *.local
+*.tgz
 
 # ------------------------------------------------------------------------------
 # GO
@@ -171,6 +182,8 @@ LOCK
 .erigon.lock
 geth.ipc
 reth.ipc
+mev-infra/
+*.prom
 
 # ------------------------------------------------------------------------------
 # MONITORING & METRICS (runtime data, not configs)
@@ -215,12 +228,17 @@ build/
 *.tar
 *.tar.gz
 *.zip
+*.tgz
+clients/*/bin/
+clients/*/chainData/
+clients/*/chaindata/
 
 # ------------------------------------------------------------------------------
 # ARCHIVED CONTENT (keep archive structure, ignore old data)
 # ------------------------------------------------------------------------------
 archive/*.tar.gz
 archive/*.zip
+archive/*/
 docs_archive/*.md
 !docs_archive/.gitkeep
 !archive/.gitkeep
@@ -255,6 +273,34 @@ dependency-check-report.html
 .yarn-integrity
 .eslintcache
 .mocharc.json
+ansible/inventory
+
+# ------------------------------------------------------------------------------
+# INFRASTRUCTURE AS CODE - these directories ARE tracked
+# ------------------------------------------------------------------------------
+!docker/
+!docker/**/*.yaml
+!docker/**/*.yml
+!docker/**/*.conf
+!docker/**/*.py
+docker/*/prometheus.yml/prometheus.yml
+!environments/
+!environments/**/*.yaml
+!environments/**/*.yml
+!failover/
+!failover/**/*.py
+!failover/**/*.yaml
+!failover/**/*.json
+!maintenance/
+!maintenance/**/*.py
+!maintenance/**/*.sh
+!maintenance/**/*.yaml
+!scripts/
+!scripts/**/*.py
+!scripts/**/*.sh
+!tools/
+!tools/**/*.py
+!tools/**/*.sh
 
 # ------------------------------------------------------------------------------
 # AI TOOLING & SESSION HISTORY
@@ -272,14 +318,49 @@ security/backup*/
 backups/*.backup*
 *.backup
 *.backup.*
+*_backup_*/
+*_timestamped_*/
+*_timestamped_*/
+*.bak.*
 
 # ------------------------------------------------------------------------------
+# CLIENTS L2 AND ALTERNATIVE CHAINS
+# ------------------------------------------------------------------------------
+clients/l2/optimism/simple/
+clients/l2/polygon/
+clients/l2/arbitrum/
+clients/l2/base/
+clients/l2/optimism/**/bin/
+clients/alternative/**/bin/
+clients/ethereum/**/bin/
+clients/ethereum/**/source/
+clients/ethereum/**/erigon_v*/
+clients/ethereum/*/*backup*
+clients/ethereum/*/*bak*
+
+# ------------------------------------------------------------------------------
+# ANSIBLE INFRASTRUCTURE AUTOMATION
+# ------------------------------------------------------------------------------
+# ansible/ is tracked for infrastructure deployment
+!ansible/
+!ansible/**/*.yml
+!ansible/**/*.yaml
+!ansible/**/.gitkeep
+!ansible/**/*.md
 # ARCHIVE CLEANUP ARTIFACTS
 # ------------------------------------------------------------------------------
 archive/cleanup-*/
 archive/avalanchego-*/
 archive/*.bin
 archive/*.exe
+*_corrupted*/
+*_failed*/
+beacon.corrupted*
+beacon.failed*
+clients/alternative/*/*.md
+clients/ethereum/*/*.md
+*_SUMMARY.md
+*_SOLUTION.md
 
 # ------------------------------------------------------------------------------
 # SECURITY SENSITIVE FILES
@@ -313,20 +394,69 @@ tests/*.pyc
 tests/__pycache__/
 tools/debugging/*.cmi
 tools/debugging/*.cmo
+scripts/maintenance/*-env/
+failover/*-env/
+
+# ------------------------------------------------------------------------------
+# TERRAFORM & IAC
+# ------------------------------------------------------------------------------
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+.terraform-version
+
+# ------------------------------------------------------------------------------
+# PYTHON SCRIPTS AT ROOT (should be in scripts/)
+# ------------------------------------------------------------------------------
+# blockchain_node_monitor.py
+test_jwt_auth*.sh
+test_*.sh
+*_VALIDATION.py
+*_QUICK_START.sh
+deploy-*.sh
+l2-*.sh
 
 # ------------------------------------------------------------------------------
 # EXTERNAL BLOCKCHAIN CLIENT SOURCES (use submodules instead)
 # ------------------------------------------------------------------------------
 clients/alternative/avalanche/source/
+clients/alternative/avalanche/chainData/
+clients/alternative/avalanche/config/*.json
 clients/alternative/bsc/source/
 clients/alternative/solana/source/
 clients/l2/*/source/
+clients/l2/*/data/
+clients/l2/*/backup*/
+clients/l2/*/bin/
 clients/ethereum/*/source/
+clients/ethereum/*/chainData/
+clients/ethereum/*/bin/
 
+# ------------------------------------------------------------------------------
+# CONSENSUS CLIENT DATABASES
+# ------------------------------------------------------------------------------
+consensus/*/beacon/chain_db/
+consensus/*/beacon/blobs_db/
+consensus/*/beacon/freezer_db/
+consensus/*/beacon/network/
+consensus/*/beacon/frozen
+consensus/*/validator/
+consensus/*/slashing_protection.sqlite3
+clients/l2/optimism/*_db/
+clients/l2/optimism/*/bin/
+
+# ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 # AGENT & AI TOOLING
 # ------------------------------------------------------------------------------
 .agent-trace/
+.interactsh-sessions/
+.sqlmap-sessions/
+
+# ------------------------------------------------------------------------------
+# ANSIBLE IAC
+# ------------------------------------------------------------------------------
+# ansible/ is tracked - infrastructure automation
 
 # ------------------------------------------------------------------------------
 # AI-GENERATED REPORTS (not code) - systemd configs in configs/systemd/ ARE tracked
@@ -337,6 +467,50 @@ clients/ethereum/*/source/
 !configs/systemd/*.timer
 !.github/
 audits/*.md
+*_report*.json
+*_report*.md
+*_results*.json
+*_status*.json
+*_check*.json
+configs/*-bench*json
+configs/*-health*json
+configs/*-check*json
+configs/*-test*json
+configs/*-report*.json
+configs/*-status*.json
+configs/*config*.json
+!configs/*/config*.yml
+!configs/*/config*.yaml
+configs/alertmanager/alertmanager.yml
+configs/cron/*
+configs/emergency/*
+configs/future-proofing-recommendations.md
+configs/logrotate*
+configs/nginx/*
+configs/port-mapping.md
+configs/genesis-forks.json
+configs/monitoring/promtail-config.yml
+configs/monitoring/loki-config.yml
+configs/ssl*/
+configs/*optimized*
+configs/*ssl*
+configs/*config*
+configs/*deploy*
+configs/*beacon*
+configs/health-endpoint.json
+configs/haproxy*
+configs/mev-boost-config.json
+configs/*rpc*
+configs/sysctl*
+configs/package.json
+configs/grafana/dashboards/README.md
+configs/grafana/dashboards/*.json
+!configs/grafana/dashboards/*.json
+configs/systemd/promtail.service
+!ansible/group_vars/*.example
+!ansible/inventory.example
+mev/*/config/*.json
+!mev/*/config/*.example
 
 # ------------------------------------------------------------------------------
 # PYTHON SCRIPTS AT ROOT (should be in scripts/)

@@ -27,6 +27,7 @@ services:
       --http.corsdomain=*
       --ws
       --ws.compression
+      # TODO(SECURITY): Change authrpc.addr to 127.0.0.1 for production. See docs/checklists/ENGINE_API_SECURITY.md
       --authrpc.addr=0.0.0.0
       --authrpc.port=8551
       --authrpc.vhosts=*

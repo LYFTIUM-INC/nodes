@@ -1,0 +1,268 @@
+# Comprehensive Backup Configuration for Blockchain Nodes
+
+# Local backup destinations
+backup_destinations:
+  local: "/data/blockchain/nodes/maintenance/backups"
+  archive: "/data/blockchain/nodes/backup/archives"
+  
+# Remote storage configuration
+remote_storage:
+  enabled: false
+  type: "s3"  # Options: s3, sftp, gcs
+  
+  # S3 configuration
+  bucket: "blockchain-backups"
+  prefix: "production"
+  region: "us-east-1"
+  storage_class: "STANDARD_IA"  # Options: STANDARD, STANDARD_IA, GLACIER
+  aws_access_key_id: ""
+  aws_secret_access_key: ""
+  
+  # SFTP configuration (alternative to S3)
+  # host: "backup.example.com"
+  # port: 22
+  # username: "backup_user"
+  # password: ""
+  # key_file: "/path/to/private/key"
+  # remote_path: "/backups/blockchain"
+
+# Node-specific backup configurations
+node_backups:
+  ethereum:
+    enabled: true
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    config_paths:
+      - "/data/blockchain/nodes/ethereum/config"
+      - "/data/blockchain/nodes/sepolia/config"
+    data_paths:
+      - "/data/blockchain/nodes/ethereum/primary/keystore"
+      - "/data/blockchain/nodes/ethereum/primary/jwt.hex"
+    log_paths:
+      - "/data/blockchain/nodes/logs/ethereum.log"
+    retention_days: 30
+    compress: true
+    
+  arbitrum:
+    enabled: true
+    schedule: "0 2 * * *"
+    config_paths:
+      - "/data/blockchain/nodes/arbitrum/config"
+    data_paths:
+      - "/data/blockchain/nodes/arbitrum/primary/keystore"
+      - "/data/blockchain/nodes/arbitrum/primary/jwt.hex"
+    log_paths:
+      - "/data/blockchain/nodes/logs/arbitrum.log"
+    retention_days: 30
+    compress: true
+    
+  polygon:
+    enabled: true
+    schedule: "0 2 * * *"
+    config_paths:
+      - "/data/blockchain/nodes/polygon/config"
+      - "/data/blockchain/nodes/polygon/heimdall-config.toml"
+    data_paths:
+      - "/data/blockchain/nodes/polygon/primary/keystore"
+      - "/data/blockchain/nodes/polygon/bor/keystore"
+      - "/data/blockchain/nodes/polygon/heimdall/config"
+    log_paths:
+      - "/data/blockchain/nodes/logs/polygon.log"
+      - "/data/blockchain/nodes/logs/polygon-heimdall.log"
+    retention_days: 30
+    compress: true
+    
+  optimism:
+    enabled: true
+    schedule: "0 2 * * *"
+    config_paths:
+      - "/data/blockchain/nodes/optimism/config"
+    data_paths:
+      - "/data/blockchain/nodes/optimism/primary/keystore"
+      - "/data/blockchain/nodes/optimism/primary/jwt.hex"
+    log_paths:
+      - "/data/blockchain/nodes/logs/optimism.log"
+    retention_days: 30
+    compress: true
+    
+  base:
+    enabled: true
+    schedule: "0 2 * * *"
+    config_paths:
+      - "/data/blockchain/nodes/base/config"
+    data_paths:
+      - "/data/blockchain/nodes/base/primary/keystore"
+      - "/data/blockchain/nodes/base/primary/jwt.hex"
+    log_paths:
+      - "/data/blockchain/nodes/logs/base.log"
+    retention_days: 30
+    compress: true
+    
+  bsc:
+    enabled: true
+    schedule: "0 2 * * *"
+    config_paths:
+      - "/data/blockchain/nodes/bsc/config"
+    data_paths:
+      - "/data/blockchain/nodes/bsc/primary/keystore"
+      - "/data/blockchain/nodes/bsc/primary/jwt.hex"
+    log_paths:
+      - "/data/blockchain/nodes/logs/bsc.log"
+    retention_days: 30
+    compress: true
+    
+  avalanche:
+    enabled: true
+    schedule: "0 2 * * *"
+    config_paths:
+      - "/data/blockchain/nodes/avalanche/config"
+    data_paths:
+      - "/data/blockchain/nodes/avalanche/primary/keystore"
+      - "/data/blockchain/nodes/avalanche/chainData"
+    log_paths:
+      - "/data/blockchain/nodes/logs/avalanche.log"
+    retention_days: 30
+    compress: true
+    
+  solana:
+    enabled: true
+    schedule: "0 2 * * *"
+    config_paths:
+      - "/data/blockchain/nodes/solana/config"
+    data_paths:
+      - "/data/blockchain/nodes/solana/primary/identity.json"
+      - "/data/blockchain/nodes/solana/primary/vote-account.json"
+    log_paths:
+      - "/data/blockchain/nodes/logs/solana.log"
+    retention_days: 21
+    compress: true
+
+# MEV-specific backups
+mev_backups:
+  mev_boost:
+    enabled: true
+    schedule: "0 3 * * *"  # Daily at 3 AM
+    config_paths:
+      - "/data/blockchain/nodes/mev-boost/config"
+    data_paths:
+      - "/data/blockchain/nodes/mev-boost/data"
+    log_paths:
+      - "/data/blockchain/nodes/logs/mev-boost.log"
+    retention_days: 14
+    compress: true
+    
+  mev_strategies:
+    enabled: true
+    schedule: "0 */6 * * *"  # Every 6 hours
+    config_paths:
+      - "/data/blockchain/nodes/mev/config"
+    data_paths:
+      - "/data/blockchain/nodes/mev/strategies"
+      - "/data/blockchain/nodes/mev/analytics/data"
+    log_paths:
+      - "/data/blockchain/nodes/logs/mev-backend.log"
+    retention_days: 7
+    compress: true
+
+# System backups
+system_backups:
+  maintenance_configs:
+    enabled: true
+    schedule: "0 1 * * 0"  # Weekly on Sunday at 1 AM
+    config_paths:
+      - "/data/blockchain/nodes/maintenance/configs"
+      - "/data/blockchain/nodes/maintenance/scripts"
+    data_paths:
+      - "/data/blockchain/nodes/maintenance/logs"
+      - "/data/blockchain/nodes/security"
+    retention_days: 90
+    compress: true
+    
+  monitoring_data:
+    enabled: true
+    schedule: "0 4 * * *"  # Daily at 4 AM
+    data_paths:
+      - "/data/blockchain/nodes/monitoring/data"
+      - "/data/blockchain/nodes/logs/health_metrics.db"
+      - "/data/blockchain/nodes/logs/log_metrics.db"
+    retention_days: 30
+    compress: true
+
+# Backup verification settings
+verification:
+  enabled: true
+  verify_on_creation: true
+  verify_on_restore: true
+  checksum_algorithm: "sha256"
+  
+# Retention policies
+retention:
+  default_days: 30
+  critical_data_days: 90
+  logs_days: 14
+  temp_backups_days: 7
+  
+  # Automatic cleanup
+  auto_cleanup:
+    enabled: true
+    schedule: "0 0 * * 0"  # Weekly on Sunday at midnight
+    min_free_space_gb: 50
+    
+# Backup performance settings
+performance:
+  compression_level: 6  # gzip compression level (1-9)
+  parallel_backups: 2
+  max_backup_size_gb: 10
+  
+  # Network settings for remote backups
+  network:
+    timeout_seconds: 300
+    retry_attempts: 3
+    retry_delay_seconds: 60
+    
+# Disaster recovery settings
+disaster_recovery:
+  enabled: true
+  priority_order:
+    - "ethereum"
+    - "mev_boost"
+    - "arbitrum"
+    - "polygon"
+    - "optimism"
+    - "base"
+    - "bsc"
+    - "avalanche"
+    - "solana"
+    
+  # Critical files that must be backed up
+  critical_files:
+    - "keystore/*"
+    - "jwt.hex"
+    - "identity.json"
+    - "vote-account.json"
+    - "config.toml"
+    - "genesis.json"
+    
+# Monitoring and alerting
+monitoring:
+  enabled: true
+  alert_on_failure: true
+  alert_on_success: false
+  
+  # Backup health thresholds
+  thresholds:
+    success_rate_warning: 95
+    success_rate_critical: 80
+    max_backup_age_hours: 48
+    
+# Incremental backup settings
+incremental:
+  enabled: false  # Disabled by default for simplicity
+  full_backup_schedule: "0 2 * * 0"  # Weekly full backup
+  incremental_schedule: "0 2 * * 1-6"  # Daily incremental
+  
+# Encryption settings
+encryption:
+  enabled: false  # Disabled by default
+  method: "gpg"
+  key_id: ""
+  passphrase_file: ""

@@ -196,6 +196,7 @@ docker logs mev-boost-foundation -n 50
 |---------|-------------|-------|
 | Relay multiplexing | `mux:` in YAML | Per-validator-group relay sets |
 | Timing games | `enable_timing_games: true` | +2–5% revenue |
+| Timeout getHeader | `timeout_get_header_ms: 950` | Flashbots default; internal timing budget (< CL get_header deadline) |
 | Metrics | `--metrics --metrics-addr 127.0.0.1:18651` | Prometheus endpoints |
 | Config file | `-config path -watch-config` | Hot-reload config changes |
 

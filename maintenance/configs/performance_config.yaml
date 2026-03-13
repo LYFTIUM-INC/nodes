@@ -1,0 +1,317 @@
+# Performance Optimization Configuration for Blockchain Nodes
+
+chains:
+  ethereum:
+    enabled: true
+    rpc_url: "http://localhost:8545"
+    process_name: "erigon"
+    min_peers: 25
+    target_metrics:
+      cpu_utilization: 70  # target %
+      memory_utilization: 80  # target %
+      rpc_latency_ms: 50
+      block_processing_time_ms: 200
+      sync_speed_blocks_per_second: 100
+    
+    bootstrap_nodes:
+      - "enode://d860a01f9722d78051619d1e2351aba3f43f943f6f00718d1b9baa4101932a1f5011f16bb2b1bb35db20d6fe28fa0bf09636d26a87d31de9ec6203eeedb1f666@18.138.108.67:30303"
+      - "enode://22a8232c3abc76a16ae9d6c3b164f98775fe226f0917b0ca871128a74a8e9630b458460865bab457221f1d448dd9791d24c4e5d88786180ac185df813a68d4de@3.209.45.79:30303"
+    
+    optimizations:
+      cpu_affinity: true
+      memory_caching: true
+      io_optimization: true
+      network_tuning: true
+      
+  arbitrum:
+    enabled: true
+    rpc_url: "http://localhost:8547"
+    process_name: "arbitrum"
+    min_peers: 15
+    target_metrics:
+      cpu_utilization: 65
+      memory_utilization: 75
+      rpc_latency_ms: 30
+      block_processing_time_ms: 100
+      
+  polygon:
+    enabled: true
+    rpc_url: "http://localhost:8548"
+    process_name: "bor"
+    min_peers: 20
+    target_metrics:
+      cpu_utilization: 70
+      memory_utilization: 80
+      rpc_latency_ms: 40
+      block_processing_time_ms: 150
+      
+  optimism:
+    enabled: true
+    rpc_url: "http://localhost:8549"
+    process_name: "op-node"
+    min_peers: 15
+    target_metrics:
+      cpu_utilization: 65
+      memory_utilization: 75
+      rpc_latency_ms: 35
+      
+  base:
+    enabled: true
+    rpc_url: "http://localhost:8550"
+    process_name: "op-node"
+    min_peers: 15
+    target_metrics:
+      cpu_utilization: 65
+      memory_utilization: 75
+      rpc_latency_ms: 35
+      
+  bsc:
+    enabled: true
+    rpc_url: "http://localhost:8551"
+    process_name: "geth"
+    min_peers: 20
+    target_metrics:
+      cpu_utilization: 70
+      memory_utilization: 80
+      rpc_latency_ms: 45
+      
+  avalanche:
+    enabled: true
+    rpc_url: "http://localhost:9650/ext/bc/C/rpc"
+    process_name: "avalanchego"
+    min_peers: 18
+    target_metrics:
+      cpu_utilization: 68
+      memory_utilization: 78
+      rpc_latency_ms: 40
+      
+  solana:
+    enabled: true
+    rpc_url: "http://localhost:8899"
+    process_name: "solana-validator"
+    min_peers: 30
+    target_metrics:
+      cpu_utilization: 75
+      memory_utilization: 85
+      rpc_latency_ms: 25
+      tps_target: 50000
+
+# System-level optimizations
+system_optimizations:
+  kernel_parameters:
+    enabled: true
+    parameters:
+      # Virtual memory settings
+      vm.swappiness: 10
+      vm.vfs_cache_pressure: 50
+      vm.dirty_ratio: 15
+      vm.dirty_background_ratio: 5
+      vm.dirty_expire_centisecs: 3000
+      vm.dirty_writeback_centisecs: 500
+      
+      # Network settings
+      net.core.rmem_default: 262144
+      net.core.rmem_max: 16777216
+      net.core.wmem_default: 262144
+      net.core.wmem_max: 16777216
+      net.core.netdev_max_backlog: 5000
+      net.core.somaxconn: 65535
+      net.ipv4.tcp_congestion_control: bbr
+      net.ipv4.tcp_rmem: "4096 65536 16777216"
+      net.ipv4.tcp_wmem: "4096 65536 16777216"
+      net.ipv4.tcp_max_syn_backlog: 65535
+      net.ipv4.tcp_fin_timeout: 30
+      net.ipv4.tcp_keepalive_time: 600
+      net.ipv4.tcp_keepalive_intvl: 60
+      net.ipv4.tcp_keepalive_probes: 3
+      
+      # File system settings
+      fs.file-max: 2097152
+      fs.nr_open: 1048576
+      
+  cpu_optimization:
+    enabled: true
+    governor: "performance"
+    cpu_affinity_enabled: true
+    # Reserve first half of CPUs for system, second half for blockchain nodes
+    blockchain_cpu_cores: "auto"  # Will use last 50% of available cores
+    
+  memory_optimization:
+    enabled: true
+    transparent_hugepages: "madvise"
+    oom_score_adjustment: -100  # Protect blockchain processes from OOM killer
+    
+  disk_optimization:
+    enabled: true
+    scheduler: "mq-deadline"  # For SSDs
+    read_ahead_kb: 4096
+    queue_depth: 64
+
+# MEV-specific performance optimizations
+mev_optimization:
+  enabled: true
+  
+  # Latency optimization targets
+  latency_targets:
+    bid_submission_ms: 50
+    block_building_ms: 200
+    gas_estimation_ms: 10
+    mempool_processing_ms: 5
+    
+  # MEV-Boost optimizations
+  mev_boost:
+    connection_pool_size: 20
+    request_timeout_ms: 100
+    retry_attempts: 2
+    relay_rotation: true
+    
+  # Private mempool optimizations
+  private_mempool:
+    enabled: true
+    batch_size: 1000
+    processing_threads: 8
+    cache_size_mb: 512
+    
+  # Sandwich attack optimizations
+  sandwich_detection:
+    enabled: true
+    detection_latency_ms: 1
+    execution_latency_ms: 50
+    
+  # Arbitrage optimizations
+  arbitrage:
+    enabled: true
+    opportunity_scanning_ms: 10
+    execution_timeout_ms: 100
+    profit_threshold_usd: 5
+
+# Monitoring and alerting thresholds
+monitoring:
+  enabled: true
+  
+  performance_thresholds:
+    cpu_warning: 80
+    cpu_critical: 95
+    memory_warning: 85
+    memory_critical: 95
+    rpc_latency_warning_ms: 100
+    rpc_latency_critical_ms: 500
+    block_processing_warning_ms: 1000
+    block_processing_critical_ms: 5000
+    
+  optimization_targets:
+    minimum_improvement_percent: 5
+    target_improvement_percent: 15
+    maximum_degradation_percent: -2
+    
+  reporting:
+    enabled: true
+    interval_minutes: 60
+    include_historical_comparison: true
+    performance_dashboard_url: "http://localhost:3000/performance"
+
+# Automated optimization scheduling
+automation:
+  enabled: true
+  
+  # Optimization schedule
+  schedule:
+    # Run comprehensive optimization daily at 3 AM
+    comprehensive: "0 3 * * *"
+    # Run lightweight optimizations every 4 hours
+    lightweight: "0 */4 * * *"
+    # Run MEV optimizations every hour during high activity
+    mev_optimizations: "0 * * * *"
+    
+  # Conditions for automatic optimization
+  triggers:
+    performance_degradation_threshold: 10  # %
+    latency_spike_threshold: 200  # % increase
+    memory_pressure_threshold: 90  # %
+    
+  # Safety limits
+  safety:
+    max_optimizations_per_hour: 3
+    rollback_on_degradation: true
+    require_manual_approval_for_critical: true
+
+# Performance baselines and targets
+performance_baselines:
+  # System baselines (measured under normal load)
+  system:
+    cpu_baseline_percent: 30
+    memory_baseline_percent: 50
+    disk_io_baseline_mbps: 100
+    network_baseline_mbps: 50
+    
+  # Chain-specific baselines
+  chain_specific:
+    ethereum:
+      rpc_latency_baseline_ms: 80
+      block_processing_baseline_ms: 300
+      sync_speed_baseline_bps: 50
+      
+    arbitrum:
+      rpc_latency_baseline_ms: 60
+      block_processing_baseline_ms: 150
+      
+    polygon:
+      rpc_latency_baseline_ms: 70
+      block_processing_baseline_ms: 200
+
+# A/B testing for optimizations
+ab_testing:
+  enabled: false  # Disabled by default for production
+  
+  test_duration_hours: 24
+  success_criteria:
+    minimum_improvement: 5  # %
+    stability_threshold: 2  # % variation
+    
+  test_groups:
+    control_percentage: 50
+    treatment_percentage: 50
+
+# Resource allocation optimization
+resource_allocation:
+  enabled: true
+  
+  # Dynamic resource allocation based on chain activity
+  dynamic_allocation:
+    enabled: true
+    reallocation_interval_minutes: 30
+    
+  # Resource priority (higher number = higher priority)
+  chain_priorities:
+    ethereum: 10
+    arbitrum: 8
+    polygon: 7
+    optimism: 6
+    base: 6
+    bsc: 5
+    avalanche: 5
+    solana: 4
+    
+  # Resource limits per chain
+  resource_limits:
+    max_cpu_percent_per_chain: 25
+    max_memory_gb_per_chain: 16
+    max_disk_iops_per_chain: 1000
+    
+# Predictive optimization
+predictive_optimization:
+  enabled: false  # Advanced feature, disabled by default
+  
+  # Machine learning model for performance prediction
+  ml_model:
+    enabled: false
+    model_type: "lstm"  # Long Short-Term Memory networks
+    prediction_horizon_hours: 4
+    retraining_interval_days: 7
+    
+  # Historical data analysis
+  historical_analysis:
+    enabled: true
+    analysis_window_days: 30
+    trend_detection: true
+    seasonal_patterns: true

@@ -1,0 +1,294 @@
+# Master Maintenance Orchestrator Configuration
+
+# Service configurations
+services:
+  health_checker:
+    enabled: true
+    interval_minutes: 5
+    priority: 10
+    timeout_minutes: 10
+    retry_attempts: 3
+    
+  backup_manager:
+    enabled: true
+    interval_hours: 24
+    priority: 7
+    timeout_minutes: 120
+    retry_attempts: 2
+    start_delay_hours: 1
+    
+  performance_optimizer:
+    enabled: true
+    interval_hours: 4
+    priority: 6
+    timeout_minutes: 60
+    retry_attempts: 2
+    start_delay_minutes: 30
+    
+  restart_manager:
+    enabled: true
+    interval_minutes: 1
+    priority: 9
+    timeout_minutes: 30
+    retry_attempts: 1
+    continuous_monitoring: true
+    
+  log_rotator:
+    enabled: true
+    interval_hours: 6
+    priority: 5
+    timeout_minutes: 30
+    retry_attempts: 2
+    start_delay_hours: 6
+    
+  update_manager:
+    enabled: false  # Disabled by default for safety
+    interval_hours: 24
+    priority: 3
+    timeout_minutes: 180
+    retry_attempts: 1
+    start_delay_hours: 24
+    
+  capacity_planner:
+    enabled: true
+    interval_minutes: 15
+    priority: 4
+    timeout_minutes: 20
+    retry_attempts: 2
+    start_delay_minutes: 15
+    
+  dashboard:
+    enabled: true
+    port: 5000
+    host: "0.0.0.0"
+    priority: 8
+    continuous_running: true
+
+# Coordination settings
+coordination:
+  max_concurrent_operations: 3
+  operation_timeout_minutes: 60
+  retry_attempts: 3
+  retry_delay_seconds: 30
+  
+  # Resource management
+  resource_limits:
+    max_cpu_percent: 80
+    max_memory_percent: 85
+    max_disk_io_mbps: 500
+    
+  # Conflict resolution
+  conflict_resolution:
+    backup_vs_restart: "backup_priority"
+    update_vs_health_check: "health_check_priority"
+    performance_vs_restart: "restart_priority"
+
+# Service priorities (1-10, higher = more important)
+priorities:
+  health_checks: 10
+  restart_operations: 9
+  dashboard: 8
+  backup_operations: 7
+  performance_optimization: 6
+  log_rotation: 5
+  capacity_planning: 4
+  updates: 3
+
+# Scheduling rules
+scheduling:
+  # Time windows for different operations
+  time_windows:
+    backups:
+      preferred_hours: [2, 3, 4]  # 2-4 AM
+      avoid_hours: [9, 10, 11, 12, 13, 14, 15, 16, 17]  # Business hours
+      
+    performance_optimization:
+      preferred_hours: [1, 5, 21, 22]  # Low activity hours
+      avoid_hours: [10, 11, 12, 13, 14, 15, 16]
+      
+    updates:
+      preferred_days: ["sunday"]
+      preferred_hours: [2, 3]
+      maintenance_window_required: true
+      
+    log_rotation:
+      preferred_hours: [0, 6, 12, 18]  # Every 6 hours
+      
+  # Load-based scheduling
+  load_based:
+    enabled: true
+    cpu_threshold: 70  # Don't start heavy operations if CPU > 70%
+    memory_threshold: 80  # Don't start heavy operations if memory > 80%
+    
+# Health monitoring
+health_monitoring:
+  enabled: true
+  check_interval_minutes: 2
+  
+  # Service health thresholds
+  thresholds:
+    max_runtime_minutes: 60
+    max_memory_mb: 1024
+    max_cpu_percent: 50
+    
+  # Auto-recovery
+  auto_recovery:
+    enabled: true
+    max_restart_attempts: 3
+    restart_delay_minutes: 5
+    escalation_threshold: 3
+
+# Alerting and notifications
+alerting:
+  enabled: true
+  
+  # Alert conditions
+  conditions:
+    service_failure: true
+    service_timeout: true
+    resource_exhaustion: true
+    multiple_failures: true
+    
+  # Notification channels
+  channels:
+    email:
+      enabled: false
+      recipients: ["devops@company.com"]
+      
+    webhook:
+      enabled: false
+      url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+      
+    log:
+      enabled: true
+      level: "ERROR"
+
+# Data retention and cleanup
+data_retention:
+  logs:
+    orchestrator_logs_days: 30
+    service_logs_days: 14
+    
+  metrics:
+    performance_metrics_days: 90
+    health_metrics_days: 30
+    capacity_metrics_days: 90
+    
+  reports:
+    status_reports_days: 7
+    performance_reports_days: 30
+
+# Security settings
+security:
+  # Access control
+  access_control:
+    enabled: false
+    api_key_required: false
+    
+  # Audit logging
+  audit_logging:
+    enabled: true
+    log_all_operations: true
+    log_configuration_changes: true
+    
+# Advanced features
+advanced:
+  # Machine learning
+  ml_enabled: false
+  ml_model_path: "/data/blockchain/nodes/maintenance/models/"
+  
+  # Predictive maintenance
+  predictive_maintenance:
+    enabled: false
+    prediction_horizon_hours: 24
+    confidence_threshold: 0.8
+    
+  # Auto-scaling
+  auto_scaling:
+    enabled: false
+    scale_up_threshold: 80
+    scale_down_threshold: 30
+    cooldown_minutes: 60
+
+# Integration settings
+integrations:
+  # Monitoring systems
+  prometheus:
+    enabled: false
+    metrics_port: 9090
+    
+  grafana:
+    enabled: false
+    dashboard_url: "http://localhost:3000"
+    
+  # External APIs
+  external_apis:
+    blockchain_info: false
+    price_feeds: false
+    
+# Development and testing
+development:
+  debug_mode: false
+  dry_run_mode: false
+  test_mode: false
+  
+  # Mock services for testing
+  mock_services:
+    enabled: false
+    services: ["update_manager", "backup_manager"]
+
+# Disaster recovery
+disaster_recovery:
+  enabled: true
+  
+  # Failover settings
+  failover:
+    automatic: false
+    backup_orchestrator: false
+    
+  # Data backup
+  orchestrator_backup:
+    enabled: true
+    backup_interval_hours: 24
+    backup_location: "/data/blockchain/nodes/maintenance/backups/orchestrator"
+    
+# Performance tuning
+performance:
+  # Thread pool settings
+  thread_pool_size: 10
+  max_workers: 5
+  
+  # Memory optimization
+  memory_optimization:
+    enabled: true
+    gc_threshold: 1000
+    
+  # Disk I/O optimization
+  disk_optimization:
+    enabled: true
+    buffer_size: 8192
+
+# Compliance and governance
+compliance:
+  # Change management
+  change_management:
+    enabled: false
+    require_approval: false
+    
+  # Audit requirements
+  audit_requirements:
+    log_retention_days: 90
+    detailed_logging: true
+    
+# Maintenance windows
+maintenance_windows:
+  # Preferred maintenance windows
+  weekly:
+    day: "sunday"
+    start_time: "02:00"
+    end_time: "06:00"
+    timezone: "UTC"
+    
+  emergency:
+    max_duration_hours: 4
+    notification_required: true

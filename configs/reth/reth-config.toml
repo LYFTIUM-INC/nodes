@@ -57,6 +57,7 @@ cache.size.transaction_receipts = 10000
 
 # Security
 auth.jwt-secret = "/jwt-secret-common.hex"
+# TODO(SECURITY): Change to "127.0.0.1" for production. See docs/checklists/ENGINE_API_SECURITY.md
 auth.addr = "0.0.0.0"
 auth.port = 8551
 priv.url = "http://127.0.0.1:8549"

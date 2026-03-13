@@ -1,0 +1,373 @@
+# Zero-Downtime Update Configuration for Blockchain Nodes
+
+# Global update settings
+global:
+  # Default update strategy
+  default_strategy: "rolling"
+  
+  # Update validation settings
+  validation:
+    pre_update_timeout_minutes: 10
+    post_update_timeout_minutes: 30
+    sync_timeout_minutes: 60
+    
+  # Backup settings
+  backup:
+    create_before_update: true
+    verify_backup: true
+    backup_retention_days: 7
+    
+  # Rollback settings
+  rollback:
+    auto_rollback_on_failure: true
+    rollback_timeout_minutes: 15
+    
+  # Safety limits
+  safety:
+    max_concurrent_updates: 1
+    min_healthy_nodes: 1
+    require_manual_approval_for_major: true
+
+# Chain-specific configurations
+chains:
+  ethereum:
+    deployment_type: "docker"  # or "binary"
+    docker_image_template: "ethereum/client-go:{version}"
+    docker_run_command: "docker run -d --name ethereum-node --restart unless-stopped -p 8545:8545 -v /data/blockchain/nodes/ethereum:/data {image}"
+    service_name: "erigon"
+    container_name: "ethereum-node"
+    rpc_url: "http://localhost:8545"
+    min_peers: 10
+    
+    # Update strategy preferences
+    preferred_strategies: ["rolling", "blue_green"]
+    
+    # Version management
+    version_check:
+      method: "rpc"  # or "api", "github"
+      endpoint: "web3_clientVersion"
+      
+    # Health checks
+    health_checks:
+      rpc_responsive: true
+      sync_status: true
+      peer_count: true
+      block_height: true
+      
+    # Performance thresholds
+    performance_thresholds:
+      max_rpc_latency_ms: 1000
+      min_peers: 10
+      max_sync_lag_blocks: 10
+      
+  arbitrum:
+    deployment_type: "docker"
+    docker_image_template: "offchainlabs/nitro-node:{version}"
+    docker_run_command: "docker run -d --name arbitrum-node --restart unless-stopped -p 8547:8547 -v /data/blockchain/nodes/arbitrum:/data {image}"
+    service_name: "arbitrum-node"
+    container_name: "arbitrum-node"
+    rpc_url: "http://localhost:8547"
+    min_peers: 5
+    preferred_strategies: ["rolling", "canary"]
+    
+  polygon:
+    deployment_type: "docker"
+    docker_image_template: "0xpolygon/bor:{version}"
+    docker_run_command: "docker run -d --name polygon-bor --restart unless-stopped -p 8548:8548 -v /data/blockchain/nodes/polygon:/data {image}"
+    service_name: "polygon-bor"
+    container_name: "polygon-bor"
+    rpc_url: "http://localhost:8548"
+    min_peers: 8
+    preferred_strategies: ["rolling"]
+    
+  optimism:
+    deployment_type: "docker"
+    docker_image_template: "ethereumoptimism/op-geth:{version}"
+    docker_run_command: "docker run -d --name optimism-node --restart unless-stopped -p 8549:8549 -v /data/blockchain/nodes/optimism:/data {image}"
+    service_name: "optimism-node"
+    container_name: "optimism-node"
+    rpc_url: "http://localhost:8549"
+    min_peers: 5
+    preferred_strategies: ["rolling", "blue_green"]
+    
+  base:
+    deployment_type: "docker"
+    docker_image_template: "us-docker.pkg.dev/oplabs-tools-artifacts/images/op-geth:{version}"
+    docker_run_command: "docker run -d --name base-node --restart unless-stopped -p 8550:8550 -v /data/blockchain/nodes/base:/data {image}"
+    service_name: "base-node"
+    container_name: "base-node"
+    rpc_url: "http://localhost:8550"
+    min_peers: 5
+    preferred_strategies: ["rolling", "blue_green"]
+    
+  bsc:
+    deployment_type: "docker"
+    docker_image_template: "bnb-chain/bsc:{version}"
+    docker_run_command: "docker run -d --name bsc-node --restart unless-stopped -p 8551:8551 -v /data/blockchain/nodes/bsc:/data {image}"
+    service_name: "bsc-node"
+    container_name: "bsc-node"
+    rpc_url: "http://localhost:8551"
+    min_peers: 8
+    preferred_strategies: ["rolling"]
+    
+  avalanche:
+    deployment_type: "docker"
+    docker_image_template: "avaplatform/avalanchego:{version}"
+    docker_run_command: "docker run -d --name avalanche-node --restart unless-stopped -p 9650:9650 -v /data/blockchain/nodes/avalanche:/data {image}"
+    service_name: "avalanche-node"
+    container_name: "avalanche-node"
+    rpc_url: "http://localhost:9650/ext/bc/C/rpc"
+    min_peers: 6
+    preferred_strategies: ["rolling"]
+    
+  solana:
+    deployment_type: "binary"
+    binary_url_template: "https://github.com/solana-labs/solana/releases/download/{version}/solana-release-x86_64-unknown-linux-gnu.tar.bz2"
+    service_name: "solana-dev"
+    rpc_url: "http://localhost:8899"
+    min_peers: 15
+    preferred_strategies: ["maintenance_window"]  # Solana updates often require more care
+
+# Update strategies configuration
+strategies:
+  rolling:
+    description: "Rolling update with minimal downtime"
+    max_downtime_seconds: 60
+    steps:
+      - "prepare_new_version"
+      - "graceful_shutdown"
+      - "start_new_version"
+      - "wait_for_sync"
+      - "validate_health"
+      
+  blue_green:
+    description: "Blue-green deployment with zero downtime"
+    max_downtime_seconds: 0
+    requires_load_balancer: true
+    steps:
+      - "deploy_green_environment"
+      - "validate_green_environment"
+      - "switch_traffic_to_green"
+      - "monitor_green_environment"
+      - "cleanup_blue_environment"
+      
+  canary:
+    description: "Canary deployment with gradual rollout"
+    max_downtime_seconds: 0
+    canary_percentage: 10
+    monitoring_duration_minutes: 30
+    steps:
+      - "deploy_canary_instance"
+      - "route_canary_traffic"
+      - "monitor_canary_performance"
+      - "complete_canary_rollout_or_rollback"
+      
+  maintenance_window:
+    description: "Update during scheduled maintenance window"
+    max_downtime_seconds: 300
+    requires_maintenance_window: true
+    steps:
+      - "verify_maintenance_window"
+      - "perform_rolling_update"
+      - "extended_validation"
+
+# Maintenance windows
+maintenance_windows:
+  # Sunday 2-4 AM UTC
+  - name: "weekly_maintenance"
+    days: ["sunday"]
+    start: "02:00"
+    end: "04:00"
+    timezone: "UTC"
+    
+  # Emergency maintenance (can be activated manually)
+  - name: "emergency_maintenance"
+    days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    start: "00:00"
+    end: "23:59"
+    timezone: "UTC"
+    enabled: false  # Only enabled when needed
+
+# Load balancer configuration (for blue-green deployments)
+load_balancer:
+  enabled: false  # Disabled by default
+  type: "nginx"  # or "haproxy", "aws_alb"
+  config_path: "/etc/nginx/sites-available/blockchain-nodes"
+  reload_command: "nginx -s reload"
+  
+  # Health check endpoints
+  health_checks:
+    endpoint: "/health"
+    interval_seconds: 10
+    timeout_seconds: 5
+    healthy_threshold: 2
+    unhealthy_threshold: 3
+
+# Monitoring and alerting during updates
+monitoring:
+  enabled: true
+  
+  # Metrics to monitor during updates
+  metrics:
+    - name: "rpc_latency"
+      threshold_ms: 1000
+      critical_threshold_ms: 5000
+      
+    - name: "peer_count"
+      minimum: 5
+      
+    - name: "sync_status"
+      max_blocks_behind: 10
+      
+    - name: "memory_usage"
+      warning_threshold: 85
+      critical_threshold: 95
+      
+    - name: "cpu_usage"
+      warning_threshold: 90
+      critical_threshold: 98
+      
+  # Alert channels
+  alerts:
+    slack:
+      enabled: false
+      webhook_url: ""
+      channel: "#blockchain-ops"
+      
+    email:
+      enabled: false
+      recipients: ["devops@company.com"]
+      
+    discord:
+      enabled: false
+      webhook_url: ""
+      
+  # Dashboard integration
+  dashboard:
+    enabled: true
+    url: "http://localhost:3000/updates"
+    api_endpoint: "http://localhost:3000/api/update-status"
+
+# Version management
+version_management:
+  # Automatic version checking
+  auto_check: true
+  check_interval_hours: 24
+  
+  # Version sources
+  sources:
+    github:
+      enabled: true
+      repositories:
+        ethereum: "ethereum/go-ethereum"
+        arbitrum: "offchainlabs/nitro"
+        polygon: "maticnetwork/bor"
+        optimism: "ethereum-optimism/op-geth"
+        base: "base-org/node"
+        bsc: "bnb-chain/bsc"
+        avalanche: "ava-labs/avalanchego"
+        solana: "solana-labs/solana"
+        
+    docker_hub:
+      enabled: true
+      check_tags: true
+      
+  # Version filtering
+  filters:
+    # Skip alpha/beta/rc versions in production
+    skip_prerelease: true
+    # Only consider semantic versions
+    semantic_versions_only: true
+    # Minimum version requirements
+    minimum_versions:
+      ethereum: "1.10.0"
+      arbitrum: "2.0.0"
+      
+# Automated update scheduling
+automation:
+  enabled: false  # Disabled by default for safety
+  
+  # Schedule for checking and applying updates
+  schedule:
+    # Check for updates daily at 1 AM
+    version_check: "0 1 * * *"
+    # Apply updates during maintenance window
+    auto_update: "0 2 * * 0"  # Sunday 2 AM
+    
+  # Update rules
+  rules:
+    # Only auto-update patch versions
+    auto_update_patch: true
+    auto_update_minor: false
+    auto_update_major: false
+    
+    # Require manual approval for certain updates
+    require_approval:
+      major_versions: true
+      security_updates: false
+      breaking_changes: true
+      
+  # Safety limits
+  safety_limits:
+    max_auto_updates_per_week: 1
+    min_time_between_updates_hours: 48
+    test_updates_on_staging: true
+
+# Staging environment (for testing updates)
+staging:
+  enabled: false
+  
+  # Staging node configurations
+  chains:
+    ethereum:
+      rpc_url: "http://localhost:18545"
+      container_name: "ethereum-node-staging"
+      
+  # Test procedures
+  tests:
+    basic_functionality: true
+    performance_benchmarks: true
+    integration_tests: true
+    duration_minutes: 60
+
+# Emergency procedures
+emergency:
+  # Emergency rollback
+  rollback:
+    max_rollback_time_minutes: 15
+    preserve_data: true
+    notify_team: true
+    
+  # Emergency contacts
+  contacts:
+    primary: "devops-oncall@company.com"
+    secondary: "blockchain-team@company.com"
+    escalation: "engineering-lead@company.com"
+    
+  # Emergency procedures
+  procedures:
+    network_partition: "isolate_affected_nodes"
+    data_corruption: "restore_from_backup"
+    performance_degradation: "rollback_immediately"
+
+# Compliance and auditing
+compliance:
+  # Change management
+  change_management:
+    require_change_ticket: false
+    change_approval_required: false
+    
+  # Audit logging
+  audit_logging:
+    enabled: true
+    log_file: "/data/blockchain/nodes/maintenance/logs/update_audit.log"
+    include_sensitive_data: false
+    
+  # Compliance requirements
+  requirements:
+    # SOX compliance
+    sox_compliant: false
+    # PCI DSS compliance
+    pci_compliant: false
+    # Custom compliance
+    custom_requirements: []

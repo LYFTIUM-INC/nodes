@@ -1,3 +1,7 @@
+# MEV Prometheus Alert Rules
+# Per MEV_MONITORING_OBSERVABILITY_2026.md SLO/health alerts
+# Inhibition: MEVBoostDown suppresses MEVBoostHighLatencyP99, MEVBoostProposalSuccessLow (configs/alertmanager/alertmanager.yml)
+#
 groups:
   # Node resource pressure (swap/memory) - node_exporter metrics
   # Standard names: node_memory_SwapTotal_bytes, node_memory_SwapFree_bytes, node_memory_MemAvailable_bytes
@@ -23,6 +27,31 @@ groups:
         annotations:
           summary: "Available memory below 2GB"
           description: "Available memory has been below 2GB for 10 minutes. Risk of OOM and sync degradation."
+
+      # DISK ALERT: node_exporter node_filesystem_* metrics (scrape at 9100)
+      - alert: LowDiskSpaceCritical
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint=~"^/$|^/data.*"} / node_filesystem_size_bytes{mountpoint=~"^/$|^/data.*"}) < 0.05
+          and node_filesystem_size_bytes{mountpoint=~"^/$|^/data.*"} > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space below 5% on {{ $labels.mountpoint }}"
+          description: "Filesystem {{ $labels.mountpoint }} has less than 5% free ({{ $value | humanizePercentage }}) for 5 minutes. Risk of node failure."
+          runbook_url: "https://github.com/LYFTIUM-INC/nodes/blob/main/docs/runbooks/MONITORING_CHECKS.md#disk"
+
+      - alert: LowDiskSpaceWarning
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint=~"^/$|^/data.*"} / node_filesystem_size_bytes{mountpoint=~"^/$|^/data.*"}) < 0.10
+          and node_filesystem_size_bytes{mountpoint=~"^/$|^/data.*"} > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space below 10% on {{ $labels.mountpoint }}"
+          description: "Filesystem {{ $labels.mountpoint }} has less than 10% free ({{ $value | humanizePercentage }}) for 5 minutes."
+          runbook_url: "https://github.com/LYFTIUM-INC/nodes/blob/main/docs/runbooks/MONITORING_CHECKS.md#disk"
 
   # P1 Critical: Restart loop and EL-CL disconnect (per BLOCKCHAIN_NODE_MANAGEMENT_BEST_PRACTICES_MEV_2026)
   - name: MEV Node Critical Alerts
@@ -55,29 +84,55 @@ groups:
           severity: critical
         annotations:
           summary: "MEV-Boost is down"
-          description: "MEV-Boost has been down for more than 1 minute"
+          description: "MEV-Boost has been down for more than 1 minute. Block proposals will fail."
+          runbook_url: "https://github.com/LYFTIUM-INC/nodes/blob/main/docs/runbooks/MONITORING_CHECKS.md#mev-boost"
 
+      # v1.12 uses mev_boost_relay_latency_* (avg = sum/count in seconds)
       - alert: MEVBoostHighLatency
-        expr: mev_boost_request_duration_seconds > 0.5
+        expr: |
+          (
+            sum(rate(mev_boost_relay_latency_sum{job=~"mev-boost.*"}[5m]))
+            / (sum(rate(mev_boost_relay_latency_count{job=~"mev-boost.*"}[5m])) + 1e-9)
+          ) > 0.5
         for: 2m
         labels:
           severity: warning
         annotations:
-          summary: "MEV-Boost high latency"
-          description: "MEV-Boost request latency is above 500ms"
+          summary: "MEV-Boost avg relay latency > 500ms"
+          description: "MEV-Boost average relay latency is above 500ms over 5m"
+          runbook_url: "https://github.com/LYFTIUM-INC/nodes/blob/main/docs/runbooks/MONITORING_CHECKS.md#mev-boost"
 
-      # Optional: p99 latency > 2s (requires mev_boost_request_duration_seconds histogram, --metrics enabled)
+      # SLO: getHeader p99 < 1s (MEV_MONITORING_OBSERVABILITY_2026.md §5.2)
+      # Inhibited by MEVBoostDown when service is down
       - alert: MEVBoostHighLatencyP99
         expr: |
           histogram_quantile(0.99,
-            sum by (le, relay) (rate(mev_boost_request_duration_seconds_bucket{job=~"mev-boost.*"}[5m]))
-          ) > 2
+            sum by (le, relay) (rate(mev_boost_relay_latency_bucket{job=~"mev-boost.*"}[5m]))
+          ) > 1
         for: 2m
         labels:
           severity: warning
         annotations:
-          summary: "MEV-Boost p99 latency > 2s"
-          description: "MEV-Boost request p99 latency exceeds 2 seconds for {{ $labels.relay }}"
+          summary: "MEV-Boost relay p99 latency > 1s"
+          description: "MEV-Boost relay p99 latency exceeds 1 second for {{ $labels.relay }} (SLO: getHeader p99 <1s)"
+          runbook_url: "https://github.com/LYFTIUM-INC/nodes/blob/main/docs/runbooks/MONITORING_CHECKS.md#mev-boost"
+
+      # SLO: proposal success ≥95% (MEV_MONITORING_OBSERVABILITY_2026.md §5.2)
+      # Inhibited by MEVBoostDown when service is down
+      - alert: MEVBoostProposalSuccessLow
+        expr: |
+          (
+            sum(rate(mev_boost_relay_status_code_total{job=~"mev-boost.*",http_status_code=~"2.."}[1h]))
+            / (sum(rate(mev_boost_relay_status_code_total{job=~"mev-boost.*"}[1h])) + 1e-9)
+          ) < 0.95
+          and sum(rate(mev_boost_relay_status_code_total{job=~"mev-boost.*"}[1h])) > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MEV-Boost proposal success rate below 95%"
+          description: "MEV-Boost getPayload success rate is below 95% over the last hour. Check relay connectivity and timing."
+          runbook_url: "https://github.com/LYFTIUM-INC/nodes/blob/main/docs/runbooks/MONITORING_CHECKS.md#mev-boost"
 
       # RBuilder alerts
       - alert: RBuilderDown
@@ -119,13 +174,13 @@ groups:
 
       # Ethereum node alerts
       - alert: EthereumNodeDown
-        expr: up{job="ethereum-node"} == 0
+        expr: max(up{job=~"erigon|ethereum-node|reth"}) == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "Ethereum node is down"
-          description: "Ethereum node has been down for more than 1 minute"
+          summary: "Ethereum execution node is down"
+          description: "Execution layer (Erigon/Geth/Reth) has been down for more than 1 minute. EL unavailable."
 
       - alert: EthereumNodeHighLatency
         expr: eth_block_processing_time_seconds > 0.1
